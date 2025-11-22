@@ -51,11 +51,20 @@ const createNativeAdapter = (): SpeechAdapter => {
 
   const emitter = new EventEmitter(nativeModule as object);
 
+  let activeSubscription: { remove: () => void } | null = null;
+
+  const clearSubscription = () => {
+    activeSubscription?.remove();
+    activeSubscription = null;
+  };
+
   return {
     supported: true,
     label: 'Record',
     start: async (onText) => {
-      const subscription = emitter.addListener('onResult', (event: { transcript?: string }) => {
+      clearSubscription();
+
+      activeSubscription = emitter.addListener('onResult', (event: { transcript?: string }) => {
         if (event.transcript) {
           onText(event.transcript);
         }
@@ -63,11 +72,18 @@ const createNativeAdapter = (): SpeechAdapter => {
 
       try {
         await nativeModule.startAsync();
-      } finally {
-        subscription.remove();
+      } catch (error) {
+        clearSubscription();
+        throw error;
       }
     },
-    stop: async () => nativeModule.stopAsync?.(),
+    stop: async () => {
+      try {
+        await nativeModule.stopAsync?.();
+      } finally {
+        clearSubscription();
+      }
+    },
   };
 };
 
