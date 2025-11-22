@@ -1,4 +1,4 @@
-import { createClient, type Provider } from '@supabase/supabase-js';
+import { createClient, type PostgrestError, type Provider } from '@supabase/supabase-js';
 import { applyPositionsToDrafts } from './decomposition';
 import type {
   Database,
@@ -117,19 +117,42 @@ export const createTaskClient = ({
     client.functions.invoke<TaskDecompositionResponse>('decompose-tasks', { body: input });
 
   const enqueueDrafts = async (drafts: TaskDraft[], ownerId: string) => {
-    const { data: active, error } = await fetchActiveTasks(ownerId);
+    let attempt = 0;
+    let lastError: PostgrestError | null = null;
 
-    if (error || !active) {
-      return { data: null, error };
+    while (attempt < 3) {
+      const { data: active, error } = await fetchActiveTasks(ownerId);
+
+      if (error || !active) {
+        return { data: null, error };
+      }
+
+      const inserts = applyPositionsToDrafts(active, drafts, ownerId);
+
+      if (inserts.length === 0) {
+        return { data: [], error: null } as const;
+      }
+
+      const { data, error: insertError } = await client.from('tasks').insert(inserts).select();
+
+      if (!insertError) {
+        return { data, error: null } as const;
+      }
+
+      if (!isPositionConflictError(insertError)) {
+        return { data: null, error: insertError } as const;
+      }
+
+      lastError = insertError;
+      attempt += 1;
     }
 
-    const inserts = applyPositionsToDrafts(active, drafts, ownerId);
-
-    if (inserts.length === 0) {
-      return { data: [], error: null } as const;
-    }
-
-    return client.from('tasks').insert(inserts).select();
+    return {
+      data: null,
+      error:
+        lastError ??
+        new Error('Unable to enqueue tasks due to concurrent updates. Please try again.'),
+    } as const;
   };
 
   const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
@@ -258,3 +281,5 @@ export const createTaskClient = ({
 
 const isMissingFunctionError = (error: { message?: string }) =>
   Boolean(error.message?.toLowerCase().includes('function') && error.message?.toLowerCase().includes('does not exist'));
+
+const isPositionConflictError = (error: PostgrestError) => error.code === '23505';
