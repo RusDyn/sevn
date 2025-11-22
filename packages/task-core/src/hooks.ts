@@ -120,19 +120,33 @@ export const useRealtimeTaskQueue = (
   }, [client, enabled, ownerId]);
 
   const optimisticUpdate = useCallback(
-    ( 
+    (
       updater: (tasks: TaskRow[]) => TaskRow[],
       action: () => Promise<{ error: unknown | null }>
     ) => {
-      setQueue((current) => normalizeQueuePositions(updater(current)));
+      let previousQueue: TaskRow[] = [];
 
-      return action().then((result) => {
-        if (result.error) {
-          void refresh();
-        }
-
-        return result;
+      setQueue((current) => {
+        previousQueue = current;
+        return normalizeQueuePositions(updater(current));
       });
+
+      return action()
+        .then((result) => {
+          if (result.error) {
+            void refresh();
+          }
+
+          return result;
+        })
+        .catch((caught) => {
+          setQueue(previousQueue);
+          void refresh();
+          const normalizedError = caught instanceof Error ? caught : new Error(String(caught));
+          setError(normalizedError);
+
+          return { data: null, error: normalizedError } as const;
+        });
     },
     [refresh]
   );
