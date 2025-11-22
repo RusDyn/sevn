@@ -15,6 +15,7 @@
     "eas-build-post-install": "pnpm run -w build:example"
   },
   "dependencies": {
+    "@acme/task-core": "workspace:*",
     "@acme/feature-home": "workspace:*",
     "@expo/vector-icons": "^15.0.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
