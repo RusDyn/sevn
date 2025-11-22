@@ -57,6 +57,12 @@ as $$
     where owner_id = p_owner
       and state not in ('done', 'archived')
   ),
+  has_target as (
+    select 1 as present
+    from active
+    where id = p_task_id
+    limit 1
+  ),
   without_target as (
     select id, row_number() over(order by rn) as rn
     from active
@@ -72,6 +78,7 @@ as $$
     union all
     select p_task_id, destination.dest + 1
     from destination
+    cross join has_target
   ),
   normalized as (
     select id, row_number() over(order by new_position, id) as position
