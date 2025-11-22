@@ -48,20 +48,42 @@ export const createTaskClient = ({
   const updateTask = (id: string, payload: TaskUpdate) =>
     client.from('tasks').update(payload).eq('id', id).select().single();
 
-  const deleteTask = (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('delete_task_and_resequence', { p_task_id: id, p_owner: scope?.ownerId ?? null });
+  const resolveOwnerId = async (taskId: string, scope?: { ownerId?: string }) => {
+    if (scope?.ownerId) {
+      return scope.ownerId;
+    }
 
-  const completeTask = (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('complete_task_and_resequence', { p_task_id: id, p_owner: scope?.ownerId ?? null });
+    const { data, error } = await client
+      .from('tasks')
+      .select('owner_id')
+      .eq('id', taskId)
+      .single();
 
-  const deprioritizeTask = (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('deprioritize_task_to_bottom', { p_task_id: id, p_owner: scope?.ownerId ?? null });
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.owner_id) {
+      throw new Error(`Owner not found for task ${taskId}`);
+    }
+
+    return data.owner_id;
+  };
+
+  const deleteTask = async (id: string, scope?: { ownerId?: string }) =>
+    client.rpc('delete_task_and_resequence', { p_task_id: id, p_owner: await resolveOwnerId(id, scope) });
+
+  const completeTask = async (id: string, scope?: { ownerId?: string }) =>
+    client.rpc('complete_task_and_resequence', { p_task_id: id, p_owner: await resolveOwnerId(id, scope) });
+
+  const deprioritizeTask = async (id: string, scope?: { ownerId?: string }) =>
+    client.rpc('deprioritize_task_to_bottom', { p_task_id: id, p_owner: await resolveOwnerId(id, scope) });
 
   const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
     client.rpc('reorder_task_queue', {
       p_task_id: move.taskId,
       p_to_index: move.toIndex,
-      p_owner: scope?.ownerId ?? null,
+      p_owner: await resolveOwnerId(move.taskId, scope),
     });
 
   return {
