@@ -10,6 +10,7 @@
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
+    "@acme/task-core": "workspace:*",
     "@acme/feature-home": "workspace:*",
     "@acme/ui": "workspace:*",
     "react": "19.1.0",
