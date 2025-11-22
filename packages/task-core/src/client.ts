@@ -71,20 +71,136 @@ export const createTaskClient = ({
   };
 
   const deleteTask = async (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('delete_task_and_resequence', { p_task_id: id, p_owner: await resolveOwnerId(id, scope) });
+    withQueueRpcFallback(
+      'delete_task_and_resequence',
+      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
+      () => deleteAndResequence(id, scope),
+    );
 
   const completeTask = async (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('complete_task_and_resequence', { p_task_id: id, p_owner: await resolveOwnerId(id, scope) });
+    withQueueRpcFallback(
+      'complete_task_and_resequence',
+      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
+      () => completeAndResequence(id, scope),
+    );
 
   const deprioritizeTask = async (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('deprioritize_task_to_bottom', { p_task_id: id, p_owner: await resolveOwnerId(id, scope) });
+    withQueueRpcFallback(
+      'deprioritize_task_to_bottom',
+      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
+      () => deprioritizeWithoutRpc(id, scope),
+    );
 
   const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
-    client.rpc('reorder_task_queue', {
-      p_task_id: move.taskId,
-      p_to_index: move.toIndex,
-      p_owner: await resolveOwnerId(move.taskId, scope),
-    });
+    withQueueRpcFallback(
+      'reorder_task_queue',
+      {
+        p_task_id: move.taskId,
+        p_to_index: move.toIndex,
+        p_owner: await resolveOwnerId(move.taskId, scope),
+      },
+      () => reorderWithoutRpc(move, scope),
+    );
+
+  const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
+    fnName: string,
+    params: Params,
+    fallback: () => Promise<{ data: TaskRow[] | null; error: unknown }>,
+  ) => {
+    const { data, error } = await client.rpc(fnName, params as never);
+
+    if (error && isMissingFunctionError(error)) {
+      return fallback();
+    }
+
+    return { data: (data as TaskRow[]) ?? null, error };
+  };
+
+  const fetchActiveTasks = async (ownerId: string) =>
+    client
+      .from('tasks')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .neq('state', 'done')
+      .neq('state', 'archived')
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true });
+
+  const resequenceActiveTasks = async (ownerId: string) => {
+    const { data: active, error } = await fetchActiveTasks(ownerId);
+
+    if (error || !active) {
+      return { data: null, error };
+    }
+
+    await Promise.all(
+      active.map((task, index) => client.from('tasks').update({ position: index + 1 }).eq('id', task.id)),
+    );
+
+    return fetchActiveTasks(ownerId);
+  };
+
+  const deleteAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
+    const ownerId = await resolveOwnerId(taskId, scope);
+
+    const { error } = await client.from('tasks').delete().eq('id', taskId);
+    if (error) {
+      return { data: null, error };
+    }
+
+    return resequenceActiveTasks(ownerId);
+  };
+
+  const completeAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
+    const ownerId = await resolveOwnerId(taskId, scope);
+
+    const { error } = await client.from('tasks').update({ state: 'done' }).eq('id', taskId);
+    if (error) {
+      return { data: null, error };
+    }
+
+    return resequenceActiveTasks(ownerId);
+  };
+
+  const deprioritizeWithoutRpc = async (taskId: string, scope?: { ownerId?: string }) => {
+    const ownerId = await resolveOwnerId(taskId, scope);
+
+    const { data: active, error } = await fetchActiveTasks(ownerId);
+    if (error || !active) {
+      return { data: null, error };
+    }
+
+    const lastPosition = active.length + 1;
+    const { error: updateError } = await client.from('tasks').update({ position: lastPosition }).eq('id', taskId);
+    if (updateError) {
+      return { data: null, error: updateError };
+    }
+
+    return resequenceActiveTasks(ownerId);
+  };
+
+  const reorderWithoutRpc = async (move: QueueMove, scope?: { ownerId?: string }) => {
+    const ownerId = await resolveOwnerId(move.taskId, scope);
+    const { data: active, error } = await fetchActiveTasks(ownerId);
+
+    if (error || !active) {
+      return { data: null, error };
+    }
+
+    const remaining = active.filter((task) => task.id !== move.taskId);
+    const destination = Math.min(Math.max(move.toIndex, 0), Math.max(remaining.length, 0));
+    const target = active.find((task) => task.id === move.taskId);
+
+    if (target) {
+      remaining.splice(destination, 0, target);
+    }
+
+    await Promise.all(
+      remaining.map((task, index) => client.from('tasks').update({ position: index + 1 }).eq('id', task.id)),
+    );
+
+    return fetchActiveTasks(ownerId);
+  };
 
   return {
     client,
@@ -105,3 +221,6 @@ export const createTaskClient = ({
     },
   };
 };
+
+const isMissingFunctionError = (error: { message?: string }) =>
+  Boolean(error.message?.toLowerCase().includes('function') && error.message?.toLowerCase().includes('does not exist'));
