@@ -10,6 +10,7 @@ packages/*/build
 .expo
 __generated__
 web-build
+dist
 
 # macOS
 .DS_Store
