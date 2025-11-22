@@ -1,10 +1,20 @@
-import { buildPositionUpdates, normalizeQueuePositions, reorderQueue } from '../queue';
+import {
+  QUEUE_WINDOW_SIZE,
+  deriveVisibleQueue,
+  buildPositionUpdates,
+  normalizeQueuePositions,
+  reduceQueueChange,
+  reorderQueue,
+} from '../queue';
 
 const buildTasks = (count: number) =>
   Array.from({ length: count }).map((_, index) => ({
     id: `task-${index + 1}`,
     position: index + 1,
   }));
+
+const buildQueueTask = (id: string, position: number, state: string = 'todo') =>
+  ({ id, position, state } as any);
 
 describe('queue helpers', () => {
   it('normalizes queue positions with gaps', () => {
@@ -40,5 +50,60 @@ describe('queue helpers', () => {
       { id: 'task-3', position: 2 },
       { id: 'task-1', position: 3 },
     ]);
+  });
+
+  it('derives a visible window even when fewer tasks exist', () => {
+    const tasks = deriveVisibleQueue(
+      [
+        buildQueueTask('a', 2),
+        buildQueueTask('b', 1, 'in_progress'),
+      ] as any,
+      QUEUE_WINDOW_SIZE
+    );
+
+    expect(tasks).toEqual([
+      expect.objectContaining({ id: 'b', position: 1 }),
+      expect.objectContaining({ id: 'a', position: 2 }),
+    ]);
+  });
+
+  it('fills the window from lower priority rows after removals', () => {
+    const initialQueue = normalizeQueuePositions(
+      [...buildTasks(9).map((task) => buildQueueTask(task.id, task.position))] as any
+    );
+
+    const afterDelete = reduceQueueChange(initialQueue as any, {
+      eventType: 'DELETE',
+      old: { id: 'task-1', state: 'todo' } as any,
+    });
+
+    const visibleQueue = deriveVisibleQueue(afterDelete as any);
+
+    expect(visibleQueue).toHaveLength(QUEUE_WINDOW_SIZE);
+    expect(visibleQueue[visibleQueue.length - 1]).toEqual(
+      expect.objectContaining({ id: 'task-8', position: 7 })
+    );
+  });
+
+  it('handles concurrent updates by normalizing positions deterministically', () => {
+    const base = normalizeQueuePositions(
+      buildTasks(7).map((task) => buildQueueTask(task.id, task.position)) as any
+    );
+
+    const afterFirstUpdate = reduceQueueChange(base as any, {
+      eventType: 'UPDATE',
+      new: { id: 'task-3', position: 10, state: 'todo' } as any,
+    });
+
+    const afterSecondUpdate = reduceQueueChange(afterFirstUpdate as any, {
+      eventType: 'UPDATE',
+      new: { id: 'task-3', position: 2, state: 'todo' } as any,
+    });
+
+    const visibleQueue = deriveVisibleQueue(afterSecondUpdate as any);
+
+    expect(visibleQueue.map((task) => task.id)).toContain('task-3');
+    expect(visibleQueue.find((task) => task.id === 'task-3')?.position).toBe(2);
+    expect(visibleQueue).toHaveLength(7);
   });
 });

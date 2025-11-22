@@ -1,44 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { createTaskClient, type TaskClient, type TaskClientConfig } from './client';
-import { normalizeQueuePositions, reorderQueue } from './queue';
+import {
+  deriveVisibleQueue,
+  normalizeQueuePositions,
+  reduceQueueChange,
+  reorderQueue,
+} from './queue';
 import type { QueueMove, TaskRow } from './types';
 
 type QueueSubscriptionChange = RealtimePostgresChangesPayload<TaskRow>;
-
-const isQueueTask = (task: TaskRow) => task.state !== 'done' && task.state !== 'archived';
-
-const reduceQueueChange = (
-  tasks: TaskRow[],
-  payload: QueueSubscriptionChange
-): TaskRow[] => {
-  if (payload.eventType === 'INSERT') {
-    const nextTask = payload.new as TaskRow;
-    if (!isQueueTask(nextTask)) return tasks;
-
-    return normalizeQueuePositions([...tasks, nextTask]);
-  }
-
-  if (payload.eventType === 'UPDATE') {
-    const updated = payload.new as TaskRow;
-    if (!isQueueTask(updated)) {
-      return normalizeQueuePositions(tasks.filter((task) => task.id !== updated.id));
-    }
-
-    const nextTasks = tasks.some((task) => task.id === updated.id)
-      ? tasks.map((task) => (task.id === updated.id ? updated : task))
-      : [...tasks, updated];
-
-    return normalizeQueuePositions(nextTasks);
-  }
-
-  if (payload.eventType === 'DELETE') {
-    const removed = payload.old as TaskRow;
-    return normalizeQueuePositions(tasks.filter((task) => task.id !== removed.id));
-  }
-
-  return tasks;
-};
 
 export const useTaskClient = (config: TaskClientConfig | null): TaskClient | null =>
   useMemo(() => (config ? createTaskClient(config) : null), [config]);
@@ -103,9 +74,11 @@ export const useRealtimeTaskQueue = (
   options: { ownerId?: string; enabled?: boolean } = {}
 ) => {
   const { ownerId, enabled = true } = options;
-  const [data, setData] = useState<TaskRow[]>([]);
+  const [queue, setQueue] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  const data = useMemo(() => deriveVisibleQueue(queue), [queue]);
 
   const refresh = useCallback(async () => {
     if (!client || !enabled) return;
@@ -117,7 +90,7 @@ export const useRealtimeTaskQueue = (
       setError(queryError);
     } else {
       setError(null);
-      setData(normalizeQueuePositions((tasks ?? []).filter(isQueueTask)));
+      setQueue(normalizeQueuePositions((tasks ?? []).filter((task) => task.state !== 'done' && task.state !== 'archived')));
     }
 
     setLoading(false);
@@ -136,7 +109,7 @@ export const useRealtimeTaskQueue = (
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: ownerId ? `owner_id=eq.${ownerId}` : undefined },
         (payload: QueueSubscriptionChange) => {
-          setData((current) => reduceQueueChange(current, payload));
+          setQueue((current) => reduceQueueChange(current, payload));
         }
       )
       .subscribe();
@@ -151,15 +124,29 @@ export const useRealtimeTaskQueue = (
       updater: (tasks: TaskRow[]) => TaskRow[],
       action: () => Promise<{ error: unknown | null }>
     ) => {
-      setData((current) => normalizeQueuePositions(updater(current)));
+      let previousQueue: TaskRow[] = [];
 
-      return action().then((result) => {
-        if (result.error) {
-          void refresh();
-        }
-
-        return result;
+      setQueue((current) => {
+        previousQueue = current;
+        return normalizeQueuePositions(updater(current));
       });
+
+      return action()
+        .then((result) => {
+          if (result.error) {
+            void refresh();
+          }
+
+          return result;
+        })
+        .catch((caught) => {
+          setQueue(previousQueue);
+          void refresh();
+          const normalizedError = caught instanceof Error ? caught : new Error(String(caught));
+          setError(normalizedError);
+
+          return { data: null, error: normalizedError } as const;
+        });
     },
     [refresh]
   );
@@ -170,10 +157,10 @@ export const useRealtimeTaskQueue = (
 
       return optimisticUpdate(
         (tasks) => tasks.filter((task) => task.id !== taskId),
-        () => client.tasks.update(taskId, { state: 'done' })
+        () => client.tasks.complete(taskId, { ownerId })
       );
     },
-    [client, optimisticUpdate]
+    [client, optimisticUpdate, ownerId]
   );
 
   const deleteTask = useCallback(
@@ -182,24 +169,24 @@ export const useRealtimeTaskQueue = (
 
       return optimisticUpdate(
         (tasks) => tasks.filter((task) => task.id !== taskId),
-        () => client.tasks.remove(taskId)
+        () => client.tasks.remove(taskId, { ownerId })
       );
     },
-    [client, optimisticUpdate]
+    [client, optimisticUpdate, ownerId]
   );
 
   const deprioritizeTask = useCallback(
     async (taskId: string) => {
       if (!client) return { data: null, error: new Error('No client configured') } as const;
 
-      const move: QueueMove = { taskId, toIndex: data.length };
+      const move: QueueMove = { taskId, toIndex: queue.length };
 
       return optimisticUpdate(
         (tasks) => reorderQueue(tasks, move),
-        () => client.tasks.reorder(move, { ownerId })
+        () => client.tasks.deprioritize(taskId, { ownerId })
       );
     },
-    [client, data.length, optimisticUpdate, ownerId]
+    [client, optimisticUpdate, ownerId, queue.length]
   );
 
   const moveTask = useCallback(
