@@ -1,13 +1,25 @@
 import { SevnFocusScreen } from '@acme/feature-home';
+import { TaskComposer } from '@acme/ui';
+import type { TaskAnalyticsEvent } from '@acme/task-core';
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
+import { useCallback } from 'react';
 import { StyleSheet } from 'react-native';
 
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { defaultOwnerId, useTaskClient } from '@/hooks/useTaskClient';
+import { useSpeechAdapter } from '@/hooks/useSpeechAdapter';
 
 export default function HomeScreen() {
+  const client = useTaskClient();
+  const speechAdapter = useSpeechAdapter();
+  const logAnalytics = useCallback(
+    (event: TaskAnalyticsEvent) => console.info('[mobile-analytics]', event.name, event.properties ?? {}),
+    []
+  );
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -35,6 +47,12 @@ export default function HomeScreen() {
               <ThemedText type="link">Open quick actions</ThemedText>
             </Link.Trigger>
           </Link>
+          <TaskComposer
+            client={client}
+            ownerId={defaultOwnerId}
+            speechAdapter={speechAdapter}
+            analytics={logAnalytics}
+          />
         </SevnFocusScreen>
       </ThemedView>
     </ParallaxScrollView>
@@ -53,6 +71,7 @@ const styles = StyleSheet.create({
   },
   focusCard: {
     alignItems: 'flex-start',
+    gap: 12,
   },
   caption: {
     fontSize: 16,

@@ -1,5 +1,16 @@
-import { createClient, type Provider } from '@supabase/supabase-js';
-import type { Database, QueueMove, TaskInsert, TaskRow, TaskSortKey, TaskUpdate } from './types';
+import { createClient, type PostgrestError, type Provider } from '@supabase/supabase-js';
+import { applyPositionsToDrafts } from './decomposition';
+import type {
+  Database,
+  QueueMove,
+  TaskDecompositionRequest,
+  TaskDecompositionResponse,
+  TaskDraft,
+  TaskInsert,
+  TaskRow,
+  TaskSortKey,
+  TaskUpdate,
+} from './types';
 
 export type TaskClientConfig = {
   supabaseUrl: string;
@@ -101,6 +112,48 @@ export const createTaskClient = ({
       },
       () => reorderWithoutRpc(move, scope),
     );
+
+  const decomposeTasks = async (input: TaskDecompositionRequest) =>
+    client.functions.invoke<TaskDecompositionResponse>('decompose-tasks', { body: input });
+
+  const enqueueDrafts = async (drafts: TaskDraft[], ownerId: string) => {
+    let attempt = 0;
+    let lastError: PostgrestError | null = null;
+
+    while (attempt < 3) {
+      const { data: active, error } = await fetchActiveTasks(ownerId);
+
+      if (error || !active) {
+        return { data: null, error };
+      }
+
+      const inserts = applyPositionsToDrafts(active, drafts, ownerId);
+
+      if (inserts.length === 0) {
+        return { data: [], error: null } as const;
+      }
+
+      const { data, error: insertError } = await client.from('tasks').insert(inserts).select();
+
+      if (!insertError) {
+        return { data, error: null } as const;
+      }
+
+      if (!isPositionConflictError(insertError)) {
+        return { data: null, error: insertError } as const;
+      }
+
+      lastError = insertError;
+      attempt += 1;
+    }
+
+    return {
+      data: null,
+      error:
+        lastError ??
+        new Error('Unable to enqueue tasks due to concurrent updates. Please try again.'),
+    } as const;
+  };
 
   const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
     fnName: string,
@@ -219,8 +272,14 @@ export const createTaskClient = ({
       deprioritize: deprioritizeTask,
       reorder: reorderTask,
     },
+    decomposition: {
+      generate: decomposeTasks,
+      enqueue: enqueueDrafts,
+    },
   };
 };
 
 const isMissingFunctionError = (error: { message?: string }) =>
   Boolean(error.message?.toLowerCase().includes('function') && error.message?.toLowerCase().includes('does not exist'));
+
+const isPositionConflictError = (error: PostgrestError) => error.code === '23505';
