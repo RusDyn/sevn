@@ -49,19 +49,19 @@ export const createTaskClient = ({
     client.from('tasks').update(payload).eq('id', id).select().single();
 
   const deleteTask = (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('delete_task_and_resequence', { task_id: id, owner_id: scope?.ownerId ?? null });
+    client.rpc('delete_task_and_resequence', { p_task_id: id, p_owner: scope?.ownerId ?? null });
 
   const completeTask = (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('complete_task_and_resequence', { task_id: id, owner_id: scope?.ownerId ?? null });
+    client.rpc('complete_task_and_resequence', { p_task_id: id, p_owner: scope?.ownerId ?? null });
 
   const deprioritizeTask = (id: string, scope?: { ownerId?: string }) =>
-    client.rpc('deprioritize_task_to_bottom', { task_id: id, owner_id: scope?.ownerId ?? null });
+    client.rpc('deprioritize_task_to_bottom', { p_task_id: id, p_owner: scope?.ownerId ?? null });
 
   const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
     client.rpc('reorder_task_queue', {
-      task_id: move.taskId,
-      to_index: move.toIndex,
-      owner_id: scope?.ownerId ?? null,
+      p_task_id: move.taskId,
+      p_to_index: move.toIndex,
+      p_owner: scope?.ownerId ?? null,
     });
 
   return {
