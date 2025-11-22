@@ -30,7 +30,7 @@ const parseAllowedOrigins = (): string[] =>
 const allowedOrigins = parseAllowedOrigins();
 
 const isOriginAllowed = (origin: string | null): boolean =>
-  allowedOrigins.length === 0 || (!!origin && allowedOrigins.includes(origin));
+  allowedOrigins.length === 0 || origin === null || allowedOrigins.includes(origin);
 
 const buildCorsHeaders = (origin: string | null) => ({
   'Content-Type': 'application/json',
