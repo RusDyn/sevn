@@ -1,0 +1,36 @@
+{
+  "private": true,
+  "name": "@acme/extension",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "lint": "eslint --ext ts,tsx src",
+    "preview": "vite preview",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@acme/feature-home": "workspace:*",
+    "@acme/ui": "workspace:*",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.4",
+    "react-native-web": "~0.21.1"
+  },
+  "devDependencies": {
+    "@acme/eslint-config": "workspace:*",
+    "@types/react": "~19.1.12",
+    "@types/react-dom": "~19.1.5",
+    "@vitejs/plugin-react": "^5.2.0",
+    "eslint": "^8.57.0",
+    "typescript": "~5.9.2",
+    "vite": "^5.4.9"
+  },
+  "eslintConfig": {
+    "extends": "@acme/eslint-config",
+    "ignorePatterns": [
+      "node_modules",
+      "dist"
+    ]
+  }
+}
