@@ -5,10 +5,6 @@ alter table if exists public.tasks
 create index if not exists tasks_owner_state_position_idx
   on public.tasks (owner_id, state, position);
 
-create unique index if not exists tasks_owner_active_position_idx
-  on public.tasks (owner_id, position)
-  where state not in ('done', 'archived');
-
 -- Re-sequence all active tasks for an owner so positions are contiguous
 create or replace function public.resequence_active_tasks(p_owner uuid)
 returns setof public.tasks
@@ -30,6 +26,23 @@ as $$
   )
   select * from updated;
 $$;
+
+do $$
+declare
+  r record;
+begin
+  for r in (
+    select distinct owner_id
+    from public.tasks
+    where state not in ('done', 'archived')
+  ) loop
+    perform resequence_active_tasks(r.owner_id);
+  end loop;
+end$$;
+
+create unique index if not exists tasks_owner_active_position_idx
+  on public.tasks (owner_id, position)
+  where state not in ('done', 'archived');
 
 -- Move a task to a zero-based index and normalize the remaining queue atomically
 create or replace function public.reorder_task_queue(p_task_id uuid, p_owner uuid, p_to_index int)
