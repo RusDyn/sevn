@@ -1,5 +1,4 @@
 import { createClient, type Provider } from '@supabase/supabase-js';
-import { buildPositionUpdates } from './queue';
 import type { Database, QueueMove, TaskInsert, TaskRow, TaskSortKey, TaskUpdate } from './types';
 
 export type TaskClientConfig = {
@@ -49,26 +48,21 @@ export const createTaskClient = ({
   const updateTask = (id: string, payload: TaskUpdate) =>
     client.from('tasks').update(payload).eq('id', id).select().single();
 
-  const deleteTask = (id: string) => client.from('tasks').delete().eq('id', id);
+  const deleteTask = (id: string, scope?: { ownerId?: string }) =>
+    client.rpc('delete_task_and_resequence', { task_id: id, owner_id: scope?.ownerId ?? null });
 
-  const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) => {
-    const { data: existingTasks, error } = await listTasks(scope?.ownerId, 'position');
+  const completeTask = (id: string, scope?: { ownerId?: string }) =>
+    client.rpc('complete_task_and_resequence', { task_id: id, owner_id: scope?.ownerId ?? null });
 
-    if (error) return { data: null, error } as const;
+  const deprioritizeTask = (id: string, scope?: { ownerId?: string }) =>
+    client.rpc('deprioritize_task_to_bottom', { task_id: id, owner_id: scope?.ownerId ?? null });
 
-    const updates = buildPositionUpdates(existingTasks, move);
-
-    for (const update of updates) {
-      const { error: updateError } = await client
-        .from('tasks')
-        .update({ position: update.position })
-        .eq('id', update.id);
-
-      if (updateError) return { data: null, error: updateError } as const;
-    }
-
-    return { data: updates, error: null } as const;
-  };
+  const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
+    client.rpc('reorder_task_queue', {
+      task_id: move.taskId,
+      to_index: move.toIndex,
+      owner_id: scope?.ownerId ?? null,
+    });
 
   return {
     client,
@@ -83,6 +77,8 @@ export const createTaskClient = ({
       create: createTask,
       update: updateTask,
       remove: deleteTask,
+      complete: completeTask,
+      deprioritize: deprioritizeTask,
       reorder: reorderTask,
     },
   };
