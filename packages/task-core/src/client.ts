@@ -1,5 +1,16 @@
 import { createClient, type Provider } from '@supabase/supabase-js';
-import type { Database, QueueMove, TaskInsert, TaskRow, TaskSortKey, TaskUpdate } from './types';
+import { applyPositionsToDrafts } from './decomposition';
+import type {
+  Database,
+  QueueMove,
+  TaskDecompositionRequest,
+  TaskDecompositionResponse,
+  TaskDraft,
+  TaskInsert,
+  TaskRow,
+  TaskSortKey,
+  TaskUpdate,
+} from './types';
 
 export type TaskClientConfig = {
   supabaseUrl: string;
@@ -101,6 +112,25 @@ export const createTaskClient = ({
       },
       () => reorderWithoutRpc(move, scope),
     );
+
+  const decomposeTasks = async (input: TaskDecompositionRequest) =>
+    client.functions.invoke<TaskDecompositionResponse>('decompose-tasks', { body: input });
+
+  const enqueueDrafts = async (drafts: TaskDraft[], ownerId: string) => {
+    const { data: active, error } = await fetchActiveTasks(ownerId);
+
+    if (error || !active) {
+      return { data: null, error };
+    }
+
+    const inserts = applyPositionsToDrafts(active, drafts, ownerId);
+
+    if (inserts.length === 0) {
+      return { data: [], error: null } as const;
+    }
+
+    return client.from('tasks').insert(inserts).select();
+  };
 
   const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
     fnName: string,
@@ -218,6 +248,10 @@ export const createTaskClient = ({
       complete: completeTask,
       deprioritize: deprioritizeTask,
       reorder: reorderTask,
+    },
+    decomposition: {
+      generate: decomposeTasks,
+      enqueue: enqueueDrafts,
     },
   };
 };

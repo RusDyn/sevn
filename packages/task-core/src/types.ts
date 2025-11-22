@@ -40,3 +40,34 @@ export type QueueMove = {
   taskId: string;
   toIndex: number;
 };
+
+export type TaskDraft = {
+  title: string;
+  description?: string | null;
+  priority?: TaskPriority;
+  state?: TaskState;
+  due_at?: string | null;
+};
+
+export type TaskDecompositionRequest = {
+  prompt: string;
+  ownerId?: string;
+  timezone?: string;
+  desiredCount?: number;
+};
+
+export type TaskDecompositionResponse = {
+  tasks: TaskDraft[];
+  summary?: string;
+};
+
+export type TaskAnalyticsEventName =
+  | 'capture_started'
+  | 'capture_failed'
+  | 'decomposition_ready'
+  | 'tasks_enqueued';
+
+export type TaskAnalyticsEvent = {
+  name: TaskAnalyticsEventName;
+  properties?: Record<string, unknown>;
+};
