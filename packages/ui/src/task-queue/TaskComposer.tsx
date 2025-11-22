@@ -79,12 +79,13 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
         setListening(false);
       });
     } catch (captureError) {
-      setListening(false);
       setError('Unable to start speech capture.');
       logAnalytics(analytics, {
         name: 'capture_failed',
         properties: { message: captureError instanceof Error ? captureError.message : String(captureError) },
       });
+    } finally {
+      setListening(false);
     }
   };
 
