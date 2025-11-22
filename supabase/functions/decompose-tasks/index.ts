@@ -97,14 +97,16 @@ serve(async (req) => {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   });
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const authHeader = req.headers.get('Authorization');
+  let user = null;
 
-  if (authError || !user) {
-    console.warn('Unauthorized decompose-tasks request', { error: authError?.message });
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+  if (authHeader) {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+
+    if (result.error) {
+      console.warn('decompose-tasks auth lookup failed', { error: result.error.message });
+    }
   }
 
   const apiKey = Deno.env.get('OPENAI_API_KEY');
@@ -118,6 +120,8 @@ serve(async (req) => {
 
   const client = new OpenAI({ apiKey });
   const model = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
+
+  const ownerId = payload.ownerId ?? user?.id ?? undefined;
 
   try {
     const completion = await client.chat.completions.create({
@@ -136,7 +140,7 @@ serve(async (req) => {
               ? { type: 'text', text: `Aim for ${payload.desiredCount} items.` }
               : null,
             payload.timezone ? { type: 'text', text: `Timezone: ${payload.timezone}` } : null,
-            payload.ownerId ? { type: 'text', text: `Owner: ${payload.ownerId}` } : null,
+            ownerId ? { type: 'text', text: `Owner: ${ownerId}` } : null,
           ].filter(Boolean) as { type: 'text'; text: string }[],
         },
       ],
@@ -181,7 +185,7 @@ serve(async (req) => {
     };
 
     console.info('decompose-tasks success', {
-      owner: payload.ownerId,
+      owner: ownerId,
       requested: payload.desiredCount,
       generated: tasks.length,
     });
