@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "^2.48.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.0",
     "@babel/preset-typescript": "^7.26.0",
     "@acme/eslint-config": "workspace:*",
     "@tsconfig/recommended": "^1.0.8",
