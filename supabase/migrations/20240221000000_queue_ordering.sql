@@ -104,7 +104,8 @@ as $$
 begin
   update public.tasks
   set state = 'done'
-  where id = p_task_id;
+  where id = p_task_id
+    and owner_id = p_owner;
 
   return query select * from resequence_active_tasks(p_owner);
 end;
@@ -118,7 +119,9 @@ security definer
 set search_path = public
 as $$
 begin
-  delete from public.tasks where id = p_task_id;
+  delete from public.tasks
+  where id = p_task_id
+    and owner_id = p_owner;
   return query select * from resequence_active_tasks(p_owner);
 end;
 $$;
@@ -136,7 +139,8 @@ begin
     (select max(position) + 1 from public.tasks where owner_id = p_owner and state not in ('done', 'archived')),
     1
   )
-  where id = p_task_id;
+  where id = p_task_id
+    and owner_id = p_owner;
 
   return query select * from resequence_active_tasks(p_owner);
 end;
