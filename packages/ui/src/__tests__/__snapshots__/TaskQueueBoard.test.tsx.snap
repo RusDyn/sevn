@@ -1,0 +1,580 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`renders the queue board with a streak header and task card snapshot 1`] = `
+<View
+  style={
+    {
+      "gap": 12,
+    }
+  }
+>
+  <View
+    accessibilityRole="header"
+    style={
+      {
+        "alignItems": "center",
+        "flexDirection": "row",
+        "justifyContent": "space-between",
+        "paddingHorizontal": 12,
+        "paddingVertical": 8,
+      }
+    }
+  >
+    <View
+      accessibilityLabel="3 Days"
+      style={
+        {
+          "backgroundColor": "#0f172a",
+          "borderRadius": 12,
+          "paddingHorizontal": 16,
+          "paddingVertical": 8,
+        }
+      }
+    >
+      <Text
+        style={
+          {
+            "color": "#f1f5f9",
+            "fontSize": 20,
+            "fontWeight": "800",
+          }
+        }
+      >
+        3
+      </Text>
+      <Text
+        style={
+          {
+            "color": "#cbd5e1",
+            "fontSize": 14,
+          }
+        }
+      >
+        Days
+      </Text>
+    </View>
+  </View>
+  <Text
+    accessibilityRole="header"
+    style={
+      {
+        "color": "#e2e8f0",
+        "fontSize": 18,
+        "fontWeight": "800",
+        "paddingHorizontal": 12,
+      }
+    }
+  >
+    Focus queue
+  </Text>
+  <View
+    accessibilityRole="list"
+    style={
+      {
+        "gap": 10,
+      }
+    }
+  >
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityState={
+          {
+            "busy": undefined,
+            "checked": undefined,
+            "disabled": undefined,
+            "expanded": undefined,
+            "selected": undefined,
+          }
+        }
+        accessibilityValue={
+          {
+            "max": undefined,
+            "min": undefined,
+            "now": undefined,
+            "text": undefined,
+          }
+        }
+        accessible={true}
+        collapsable={false}
+        focusable={true}
+        onBlur={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onResponderGrant={[Function]}
+        onResponderMove={[Function]}
+        onResponderRelease={[Function]}
+        onResponderTerminate={[Function]}
+        onResponderTerminationRequest={[Function]}
+        onStartShouldSetResponder={[Function]}
+      >
+        <View
+          accessibilityHint="Swipe right to complete, left to delete, down to deprioritize"
+          accessibilityLabel="Write focus log at position 1"
+          accessibilityRole="button"
+          style={
+            [
+              {
+                "backgroundColor": "#111827",
+                "borderColor": "#1f2937",
+                "borderRadius": 16,
+                "borderWidth": 1,
+                "gap": 8,
+                "padding": 16,
+              },
+              {
+                "transform": [
+                  {
+                    "translateX": 0,
+                  },
+                  {
+                    "translateY": 0,
+                  },
+                  {
+                    "scale": 1,
+                  },
+                ],
+              },
+            ]
+          }
+        >
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "flexDirection": "row",
+                "justifyContent": "space-between",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#cbd5e1",
+                  "fontSize": 16,
+                  "fontWeight": "800",
+                }
+              }
+            >
+              #
+              1
+            </Text>
+            <Text
+              style={
+                {
+                  "color": "#0ea5e9",
+                  "fontSize": 12,
+                  "fontWeight": "700",
+                  "letterSpacing": 1,
+                }
+              }
+            >
+              HIGH
+            </Text>
+          </View>
+          <Text
+            style={
+              {
+                "color": "#f8fafc",
+                "fontSize": 18,
+                "fontWeight": "700",
+              }
+            }
+          >
+            Write focus log
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#cbd5e1",
+                "fontSize": 14,
+              }
+            }
+          >
+            Capture what moved the needle today
+          </Text>
+          <View
+            style={
+              {
+                "alignItems": "center",
+                "flexDirection": "row",
+                "gap": 8,
+                "justifyContent": "space-between",
+              }
+            }
+          >
+            <Text
+              style={
+                {
+                  "color": "#a5b4fc",
+                  "fontWeight": "600",
+                }
+              }
+            >
+              in progress
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityLabel="Empty queue slot at position 2"
+        accessibilityRole="text"
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#0b1224",
+              "borderColor": "#1e293b",
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "padding": 14,
+            },
+            {
+              "flexDirection": "row",
+              "gap": 12,
+              "justifyContent": "flex-start",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontSize": 18,
+              "fontWeight": "700",
+            }
+          }
+        >
+          #
+          2
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#cbd5e1",
+              "flexShrink": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          You are all caught up. Add a task to keep your streak alive.
+        </Text>
+      </View>
+    </View>
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityLabel="Empty queue slot at position 3"
+        accessibilityRole="text"
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#0b1224",
+              "borderColor": "#1e293b",
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "padding": 14,
+            },
+            {
+              "flexDirection": "row",
+              "gap": 12,
+              "justifyContent": "flex-start",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontSize": 18,
+              "fontWeight": "700",
+            }
+          }
+        >
+          #
+          3
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#cbd5e1",
+              "flexShrink": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          You are all caught up. Add a task to keep your streak alive.
+        </Text>
+      </View>
+    </View>
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityLabel="Empty queue slot at position 4"
+        accessibilityRole="text"
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#0b1224",
+              "borderColor": "#1e293b",
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "padding": 14,
+            },
+            {
+              "flexDirection": "row",
+              "gap": 12,
+              "justifyContent": "flex-start",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontSize": 18,
+              "fontWeight": "700",
+            }
+          }
+        >
+          #
+          4
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#cbd5e1",
+              "flexShrink": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          You are all caught up. Add a task to keep your streak alive.
+        </Text>
+      </View>
+    </View>
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityLabel="Empty queue slot at position 5"
+        accessibilityRole="text"
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#0b1224",
+              "borderColor": "#1e293b",
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "padding": 14,
+            },
+            {
+              "flexDirection": "row",
+              "gap": 12,
+              "justifyContent": "flex-start",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontSize": 18,
+              "fontWeight": "700",
+            }
+          }
+        >
+          #
+          5
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#cbd5e1",
+              "flexShrink": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          You are all caught up. Add a task to keep your streak alive.
+        </Text>
+      </View>
+    </View>
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityLabel="Empty queue slot at position 6"
+        accessibilityRole="text"
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#0b1224",
+              "borderColor": "#1e293b",
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "padding": 14,
+            },
+            {
+              "flexDirection": "row",
+              "gap": 12,
+              "justifyContent": "flex-start",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontSize": 18,
+              "fontWeight": "700",
+            }
+          }
+        >
+          #
+          6
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#cbd5e1",
+              "flexShrink": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          You are all caught up. Add a task to keep your streak alive.
+        </Text>
+      </View>
+    </View>
+    <View
+      accessibilityRole="listitem"
+      style={
+        {
+          "backgroundColor": "#0b1021",
+          "borderColor": "#0f172a",
+          "borderRadius": 16,
+          "borderWidth": 1,
+          "padding": 8,
+        }
+      }
+    >
+      <View
+        accessibilityLabel="Empty queue slot at position 7"
+        accessibilityRole="text"
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#0b1224",
+              "borderColor": "#1e293b",
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "padding": 14,
+            },
+            {
+              "flexDirection": "row",
+              "gap": 12,
+              "justifyContent": "flex-start",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontSize": 18,
+              "fontWeight": "700",
+            }
+          }
+        >
+          #
+          7
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#cbd5e1",
+              "flexShrink": 1,
+              "fontSize": 14,
+            }
+          }
+        >
+          You are all caught up. Add a task to keep your streak alive.
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
