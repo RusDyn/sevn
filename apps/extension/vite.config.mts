@@ -8,6 +8,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      ignore: ['react-native'],
+    },
+    rollupOptions: {
+      external: (id) => id === 'react-native' || id.startsWith('react-native-') || id.startsWith('expo-'),
+    },
+  },
+  optimizeDeps: {
+    exclude: ['react-native'],
   },
   resolve: {
     alias: {

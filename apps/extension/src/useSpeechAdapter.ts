@@ -12,11 +12,7 @@ export const useSpeechAdapter = (): SpeechAdapter =>
       return unsupportedAdapter;
     }
 
-    const SpeechRecognition =
-      (window as typeof window & { webkitSpeechRecognition?: typeof window.SpeechRecognition })
-        .SpeechRecognition ||
-      (window as typeof window & { webkitSpeechRecognition?: typeof window.SpeechRecognition })
-        .webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       return unsupportedAdapter;
@@ -33,14 +29,14 @@ export const useSpeechAdapter = (): SpeechAdapter =>
           recognizer.lang = 'en-US';
           recognizer.continuous = false;
           recognizer.interimResults = false;
-          recognizer.onresult = (event: { results?: SpeechRecognitionResultList }) => {
+          recognizer.onresult = (event) => {
             const transcript = event.results?.[0]?.[0]?.transcript;
             if (transcript) {
               onText(transcript);
             }
             resolve();
           };
-          recognizer.onerror = (event: { error?: string }) => {
+          recognizer.onerror = (event) => {
             reject(new Error(event.error ?? 'speech_error'));
           };
           recognizer.onend = () => resolve();
