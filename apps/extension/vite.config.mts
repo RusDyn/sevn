@@ -10,8 +10,12 @@ const reactNativeWebPlugin = (): Plugin => ({
     if (source === 'react-native') {
       return this.resolve('react-native-web', undefined, { skipSelf: true });
     }
-    // External react-native-* and expo-* packages that aren't needed for web
-    if (source.startsWith('react-native-') || source.startsWith('expo-')) {
+    // Allow react-native dependencies needed by the popup (e.g. gesture-handler, reanimated)
+    // to be bundled/aliased instead of being marked external.
+    if (
+      (source.startsWith('react-native-') || source.startsWith('expo-')) &&
+      !['react-native-gesture-handler', 'react-native-reanimated'].includes(source)
+    ) {
       return { id: source, external: true };
     }
   },
