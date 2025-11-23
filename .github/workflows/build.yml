@@ -41,11 +41,11 @@ jobs:
         run: pnpm run -w build:sevn
 
       - name: 🚀 Build Sevn
-        if: ${{ github.event.inputs.submit == 'false' || github.event.inputs.profile != 'production' }}
+        if: ${{ github.event.inputs.submit != 'true' || github.event.inputs.profile != 'production' }}
         working-directory: apps/sevn
         run: eas build --non-interactive --wait --platform=${{ github.event.inputs.platform }} --profile=${{ github.event.inputs.profile }}
 
       - name: 🚀 Build & submit Sevn
-        if: ${{ github.event.inputs.submit == 'true' && github.event.inputs.profile != 'production' }}
+        if: ${{ github.event.inputs.submit == 'true' && github.event.inputs.profile == 'production' }}
         working-directory: apps/sevn
         run: eas build --non-interactive --wait --auto-submit --platform=${{ github.event.inputs.platform }} --profile=${{ github.event.inputs.profile }}
