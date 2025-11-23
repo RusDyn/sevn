@@ -35,7 +35,7 @@ export default function HomeScreen() {
         <ThemedText>Keep your attention anchored to what matters most.</ThemedText>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <SevnFocusScreen style={styles.focusCard}>
+        <SevnFocusScreen style={styles.focusCard} ownerId={defaultOwnerId}>
           <ThemedText>
             Pin this focus screen in the Sevn browser extension to stay present while you work.
           </ThemedText>

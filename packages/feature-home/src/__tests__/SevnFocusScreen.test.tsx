@@ -8,6 +8,8 @@ describe('SevnFocusScreen', () => {
 
     expect(screen.getByText(/Settle in/i)).toBeTruthy();
     expect(screen.getByText(/breath/i)).toBeTruthy();
+    expect(screen.getByText(/Focus queue/i)).toBeTruthy();
+    expect(screen.getAllByLabelText(/Empty queue slot/i)).toHaveLength(7);
   });
 
   it('applies custom focus messages', () => {
