@@ -16,6 +16,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@acme/task-core": "workspace:*",
     "@acme/ui": "workspace:*"
   },
   "devDependencies": {
