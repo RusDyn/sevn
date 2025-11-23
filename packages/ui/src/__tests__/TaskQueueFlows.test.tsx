@@ -1,4 +1,4 @@
-import type { TaskClient, TaskDraft, TaskRow } from '@acme/task-core';
+import type { QueueMove, TaskClient, TaskDraft, TaskRow } from '@acme/task-core';
 import { deriveVisibleQueue, normalizeQueuePositions, reorderQueue, useRealtimeTaskQueue } from '@acme/task-core';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -126,6 +126,10 @@ useRealtimeTaskQueueMock.mockImplementation(() => {
   useEffect(() => queueStore.subscribe(setQueue), []);
 
   const data = useMemo(() => deriveVisibleQueue(queue), [queue]);
+  const error = null;
+  const refresh = jest.fn(async () => {
+    setQueue(queueStore.get());
+  });
   const completeTask = jest.fn(async (taskId: string) => {
     queueStore.set(queueStore.get().filter((task) => task.id !== taskId));
     return { data: null, error: null } as const;
@@ -138,8 +142,12 @@ useRealtimeTaskQueueMock.mockImplementation(() => {
     queueStore.set(reorderQueue(queueStore.get(), { taskId, toIndex: queueStore.get().length }));
     return { data: null, error: null } as const;
   });
+  const moveTask = jest.fn(async (move: QueueMove) => {
+    queueStore.set(reorderQueue(queueStore.get(), move));
+    return { data: null, error: null } as const;
+  });
 
-  return { data, loading: false, completeTask, deleteTask, deprioritizeTask };
+  return { data, loading: false, error, refresh, completeTask, deleteTask, deprioritizeTask, moveTask };
 });
 
 describe('Task queue flows', () => {
