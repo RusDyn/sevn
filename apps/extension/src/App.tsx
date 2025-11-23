@@ -12,7 +12,7 @@ const logAnalytics = (event: TaskAnalyticsEvent) => {
 function App() {
   return (
     <View style={styles.page}>
-      <SevnFocusScreen style={styles.focusCard}>
+      <SevnFocusScreen style={styles.focusCard} ownerId={defaultOwnerId}>
         <Paragraph style={styles.helper}>
           Pin this view inside your browser extension to keep a <Strong>Sevn</Strong> reminder within reach.
         </Paragraph>
