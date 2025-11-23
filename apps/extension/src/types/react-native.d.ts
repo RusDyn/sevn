@@ -51,6 +51,7 @@ declare module 'react-native' {
   export const ScrollView: React.ComponentType<any>;
   export const TouchableOpacity: React.ComponentType<any>;
   export const Image: React.ComponentType<any>;
+  export const ActivityIndicator: React.ComponentType<any>;
 
   export const StyleSheet: {
     create<T extends { [key: string]: ViewStyle | TextStyle | ImageStyle }>(styles: T): T;

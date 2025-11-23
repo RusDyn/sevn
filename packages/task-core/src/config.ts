@@ -1,3 +1,4 @@
+// @ts-ignore - process may not be defined in all environments
 const env = typeof process !== 'undefined' ? process.env ?? {} : {};
 const importMetaEnv =
   typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: Record<string, string> }).env
