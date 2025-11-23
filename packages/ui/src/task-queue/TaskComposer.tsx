@@ -1,4 +1,4 @@
-import type { TaskAnalyticsEvent, TaskClient, TaskDraft } from '@acme/task-core';
+import { applyPositionsToDrafts, type TaskAnalyticsEvent, type TaskClient, type TaskDraft } from '@acme/task-core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -183,12 +183,31 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
     const { data, error: enqueueError } = await client.decomposition.enqueue([draft], ownerId);
 
     if (enqueueError || !data) {
-      const { data: created, error: createError } = await client.tasks.create({
-        title,
-        state: 'todo',
-        priority: 'medium',
-        owner_id: ownerId,
-      });
+      const { data: active, error: fetchError } = await client.tasks.list(ownerId);
+
+      if (fetchError || !active) {
+        setSubmitting(false);
+        setError('Unable to add the task right now. Please try again.');
+        logAnalytics(analytics, {
+          name: 'capture_failed',
+          properties: { reason: 'add_now', message: fetchError?.message ?? enqueueError?.message },
+        });
+        return;
+      }
+
+      const [manualInsert] = applyPositionsToDrafts(active, [draft], ownerId);
+
+      if (!manualInsert) {
+        setSubmitting(false);
+        setError('Unable to add the task right now. Please try again.');
+        logAnalytics(analytics, {
+          name: 'capture_failed',
+          properties: { reason: 'add_now', message: enqueueError?.message },
+        });
+        return;
+      }
+
+      const { data: created, error: createError } = await client.tasks.create(manualInsert);
 
       if (createError || !created) {
         setSubmitting(false);
