@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@acme/app-sevn",
+  "name": "@sevn/app-sevn",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -15,8 +15,8 @@
     "eas-build-post-install": "pnpm run -w build:sevn"
   },
   "dependencies": {
-    "@acme/task-core": "workspace:*",
-    "@acme/feature-home": "workspace:*",
+    "@sevn/task-core": "workspace:*",
+    "@sevn/feature-home": "workspace:*",
     "@expo/vector-icons": "^15.0.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -37,7 +37,7 @@
     "react-native-web": "~0.21.0"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
+    "@sevn/eslint-config": "workspace:*",
     "@expo/metro": "^0.1.1",
     "@expo/metro-runtime": "~6.1.2",
     "@testing-library/react-native": "^13.2.0",
@@ -48,7 +48,7 @@
     "typescript": "~5.9.2"
   },
   "eslintConfig": {
-    "extends": "@acme/eslint-config",
+    "extends": "@sevn/eslint-config",
     "ignorePatterns": [
       "node_modules",
       "build",

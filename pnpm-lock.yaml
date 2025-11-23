@@ -20,13 +20,13 @@ importers:
 
   apps/extension:
     dependencies:
-      '@acme/feature-home':
+      '@sevn/feature-home':
         specifier: workspace:*
         version: link:../../packages/feature-home
-      '@acme/task-core':
+      '@sevn/task-core':
         specifier: workspace:*
         version: link:../../packages/task-core
-      '@acme/ui':
+      '@sevn/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       react:
@@ -42,7 +42,7 @@ importers:
         specifier: ~0.21.1
         version: 0.21.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
-      '@acme/eslint-config':
+      '@sevn/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
       '@types/react':
@@ -69,10 +69,10 @@ importers:
 
   apps/sevn:
     dependencies:
-      '@acme/feature-home':
+      '@sevn/feature-home':
         specifier: workspace:*
         version: link:../../packages/feature-home
-      '@acme/task-core':
+      '@sevn/task-core':
         specifier: workspace:*
         version: link:../../packages/task-core
       '@expo/vector-icons':
@@ -130,7 +130,7 @@ importers:
         specifier: ~0.21.0
         version: 0.21.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
-      '@acme/eslint-config':
+      '@sevn/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
       '@expo/metro':
@@ -178,14 +178,14 @@ importers:
 
   packages/feature-home:
     dependencies:
-      '@acme/task-core':
+      '@sevn/task-core':
         specifier: workspace:*
         version: link:../task-core
-      '@acme/ui':
+      '@sevn/ui':
         specifier: workspace:*
         version: link:../ui
     devDependencies:
-      '@acme/eslint-config':
+      '@sevn/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@testing-library/react-native':
@@ -234,7 +234,7 @@ importers:
         specifier: ^2.48.0
         version: 2.84.0
     devDependencies:
-      '@acme/eslint-config':
+      '@sevn/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@babel/core':
@@ -276,11 +276,11 @@ importers:
 
   packages/ui:
     dependencies:
-      '@acme/task-core':
+      '@sevn/task-core':
         specifier: workspace:*
         version: link:../task-core
     devDependencies:
-      '@acme/eslint-config':
+      '@sevn/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@testing-library/react-native':

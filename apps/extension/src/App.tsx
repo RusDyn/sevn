@@ -1,5 +1,5 @@
-import { Paragraph, Strong, TaskComposer, TaskQueueBoard } from '@acme/ui';
-import type { TaskAnalyticsEvent } from '@acme/task-core';
+import { Paragraph, Strong, TaskComposer, TaskQueueBoard } from '@sevn/ui';
+import type { TaskAnalyticsEvent } from '@sevn/task-core';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthGate } from './AuthGate';

@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@acme/monorepo",
+  "name": "@sevn/monorepo",
   "scripts": {
     "dev": "turbo dev",
     "dev:sevn": "turbo dev --filter=\"{./apps/sevn}...\"",

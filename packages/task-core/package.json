@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@acme/task-core",
+  "name": "@sevn/task-core",
   "version": "0.1.0",
   "description": "Shared task domain types and Supabase client utilities",
   "main": "./src/index.ts",
@@ -19,7 +19,7 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-typescript": "^7.26.0",
-    "@acme/eslint-config": "workspace:*",
+    "@sevn/eslint-config": "workspace:*",
     "@tsconfig/recommended": "^1.0.8",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.1.12",
@@ -35,7 +35,7 @@
     "react": "*"
   },
   "eslintConfig": {
-    "extends": "@acme/eslint-config",
+    "extends": "@sevn/eslint-config",
     "ignorePatterns": [
       "node_modules",
       "build"

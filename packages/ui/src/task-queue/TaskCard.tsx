@@ -1,4 +1,4 @@
-import type { TaskRow } from '@acme/task-core';
+import type { TaskRow } from '@sevn/task-core';
 import { ReactNode, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';

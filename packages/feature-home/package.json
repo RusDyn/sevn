@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@acme/feature-home",
+  "name": "@sevn/feature-home",
   "version": "1.0.0",
   "description": "Acme home feature for React (Native)",
   "author": "Cedric van Putten <me@bycedric.com>",
@@ -16,11 +16,11 @@
     "test": "jest"
   },
   "dependencies": {
-    "@acme/task-core": "workspace:*",
-    "@acme/ui": "workspace:*"
+    "@sevn/task-core": "workspace:*",
+    "@sevn/ui": "workspace:*"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
+    "@sevn/eslint-config": "workspace:*",
     "@testing-library/react-native": "^13.2.0",
     "@tsconfig/recommended": "^1.0.8",
     "@types/jest": "^29.5.14",
@@ -49,7 +49,7 @@
     }
   },
   "eslintConfig": {
-    "extends": "@acme/eslint-config",
+    "extends": "@sevn/eslint-config",
     "ignorePatterns": [
       "node_modules",
       "build"

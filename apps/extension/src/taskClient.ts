@@ -1,4 +1,4 @@
-import { createTaskClient, resolveSupabaseConfig, type TaskClient } from '@acme/task-core';
+import { createTaskClient, resolveSupabaseConfig, type TaskClient } from '@sevn/task-core';
 
 const supabaseConfig = resolveSupabaseConfig();
 

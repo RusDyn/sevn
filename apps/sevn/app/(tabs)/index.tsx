@@ -1,6 +1,6 @@
-import { SevnFocusScreen } from '@acme/feature-home';
-import { TaskComposer } from '@acme/ui';
-import type { TaskAnalyticsEvent } from '@acme/task-core';
+import { SevnFocusScreen } from '@sevn/feature-home';
+import { TaskComposer } from '@sevn/ui';
+import type { TaskAnalyticsEvent } from '@sevn/task-core';
 import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 

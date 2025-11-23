@@ -1,5 +1,5 @@
-import type { TaskRow } from '@acme/task-core';
-import { useRealtimeTaskQueue } from '@acme/task-core';
+import type { TaskRow } from '@sevn/task-core';
+import { useRealtimeTaskQueue } from '@sevn/task-core';
 import { cleanup, render } from '@testing-library/react-native';
 
 import { TaskQueueBoard } from '../task-queue/TaskQueueBoard';
@@ -17,7 +17,7 @@ jest.mock('react-native-gesture-handler', () => ({
     }),
   },
 }));
-jest.mock('@acme/task-core', () => ({
+jest.mock('@sevn/task-core', () => ({
   useRealtimeTaskQueue: jest.fn(),
 }));
 

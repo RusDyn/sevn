@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@acme/extension",
+  "name": "@sevn/extension",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
@@ -11,16 +11,16 @@
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
-    "@acme/feature-home": "workspace:*",
-    "@acme/task-core": "workspace:*",
-    "@acme/ui": "workspace:*",
+    "@sevn/feature-home": "workspace:*",
+    "@sevn/task-core": "workspace:*",
+    "@sevn/ui": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.4",
     "react-native-web": "~0.21.1"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
+    "@sevn/eslint-config": "workspace:*",
     "@types/react": "~19.1.12",
     "@types/react-dom": "~19.1.5",
     "@vitejs/plugin-react": "^5.1.1",
@@ -30,7 +30,7 @@
     "vite": "^5.4.9"
   },
   "eslintConfig": {
-    "extends": "@acme/eslint-config",
+    "extends": "@sevn/eslint-config",
     "ignorePatterns": [
       "node_modules",
       "dist"

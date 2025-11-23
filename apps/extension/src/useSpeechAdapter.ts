@@ -1,4 +1,4 @@
-import type { SpeechAdapter } from '@acme/ui';
+import type { SpeechAdapter } from '@sevn/ui';
 import { useMemo } from 'react';
 
 const unsupportedAdapter: SpeechAdapter = {

@@ -5,8 +5,8 @@ import {
   useEnvTaskClient,
   useTaskSession,
   type FocusMessage,
-} from '@acme/task-core';
-import { Paragraph, TaskQueueBoard } from '@acme/ui';
+} from '@sevn/task-core';
+import { Paragraph, TaskQueueBoard } from '@sevn/ui';
 import { ComponentProps, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 

@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@acme/ui",
+  "name": "@sevn/ui",
   "version": "1.0.0",
   "description": "Acme UI components for React Native",
   "author": "Cedric van Putten <me@bycedric.com>",
@@ -16,10 +16,10 @@
     "test": "jest"
   },
   "dependencies": {
-    "@acme/task-core": "workspace:*"
+    "@sevn/task-core": "workspace:*"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
+    "@sevn/eslint-config": "workspace:*",
     "@testing-library/react-native": "^13.2.0",
     "@tsconfig/recommended": "^1.0.8",
     "@types/jest": "^29.5.14",
@@ -38,7 +38,7 @@
     "react-native-web": "~0.21.1"
   },
   "peerDependencies": {
-    "@acme/task-core": "*",
+    "@sevn/task-core": "*",
     "react": "*",
     "react-native": "*",
     "react-native-web": "*",
@@ -55,7 +55,7 @@
     }
   },
   "eslintConfig": {
-    "extends": "@acme/eslint-config",
+    "extends": "@sevn/eslint-config",
     "ignorePatterns": [
       "node_modules",
       "build"
@@ -64,7 +64,7 @@
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
-      "^@acme/(.*)$": "<rootDir>/../$1/src",
+      "^@sevn/(.*)$": "<rootDir>/../$1/src",
       "^react-native-gesture-handler$": "<rootDir>/__mocks__/react-native-gesture-handler.js"
     }
   }
