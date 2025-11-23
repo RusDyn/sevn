@@ -1,4 +1,4 @@
-import type { TaskAnalyticsEvent, TaskClient, TaskDraft } from '@acme/task-core';
+import { applyPositionsToDrafts, type TaskAnalyticsEvent, type TaskClient, type TaskDraft } from '@acme/task-core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -43,6 +43,7 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
   const [listening, setListening] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [path, setPath] = useState<'add' | 'plan'>('add');
   const activeAdapter = useRef<SpeechAdapter | null>(null);
 
   useEffect(() => () => {
@@ -64,6 +65,12 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
   const startTranscription = async () => {
     if (!speechAdapter?.supported) {
       setError('Voice capture is unavailable. Type your task instead.');
+      logAnalytics(analytics, { name: 'capture_failed', properties: { reason: 'unsupported_voice' } });
+      return;
+    }
+
+    if (!client) {
+      setError('Task sync is unavailable. Save tasks with Add now after connecting Supabase.');
       logAnalytics(analytics, { name: 'capture_failed', properties: { reason: 'unsupported' } });
       return;
     }
@@ -103,7 +110,7 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
     });
 
     if (decompositionError || !data) {
-      setError('Could not reach the AI planner.');
+      setError('Could not reach the AI planner. Use Add now to save the task immediately.');
       logAnalytics(analytics, {
         name: 'capture_failed',
         properties: { reason: 'llm', message: decompositionError?.message },
@@ -155,11 +162,77 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
     logAnalytics(analytics, { name: 'tasks_enqueued', properties: { count: data?.length ?? 0 } });
   };
 
+  const addNow = async () => {
+    if (!client) {
+      setError('Task sync is unavailable. Configure Supabase to add tasks.');
+      return;
+    }
+
+    const title = input.trim();
+
+    if (!title) {
+      setError('Enter a task title to add it now.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    const draft: TaskDraft = { title };
+
+    const { data, error: enqueueError } = await client.decomposition.enqueue([draft], ownerId);
+
+    if (enqueueError || !data) {
+      const { data: active, error: fetchError } = await client.tasks.list(ownerId);
+
+      if (fetchError || !active) {
+        setSubmitting(false);
+        setError('Unable to add the task right now. Please try again.');
+        logAnalytics(analytics, {
+          name: 'capture_failed',
+          properties: { reason: 'add_now', message: fetchError?.message ?? enqueueError?.message },
+        });
+        return;
+      }
+
+      const [manualInsert] = applyPositionsToDrafts(active, [draft], ownerId);
+
+      if (!manualInsert) {
+        setSubmitting(false);
+        setError('Unable to add the task right now. Please try again.');
+        logAnalytics(analytics, {
+          name: 'capture_failed',
+          properties: { reason: 'add_now', message: enqueueError?.message },
+        });
+        return;
+      }
+
+      const { data: created, error: createError } = await client.tasks.create(manualInsert);
+
+      if (createError || !created) {
+        setSubmitting(false);
+        setError('Unable to add the task right now. Please try again.');
+        logAnalytics(analytics, {
+          name: 'capture_failed',
+          properties: { reason: 'add_now', message: createError?.message ?? enqueueError?.message },
+        });
+        return;
+      }
+    }
+
+    setSubmitting(false);
+    setInput('');
+    setDrafts([]);
+    setSelected(new Set());
+    setSummary('');
+    logAnalytics(analytics, { name: 'tasks_enqueued', properties: { count: 1, path: 'add_now' } });
+  };
+
   const instructions = useMemo(
     () =>
       speechAdapter?.supported
-        ? 'Tap record and speak the next task you want to accomplish.'
-        : 'Voice capture is unavailable on this platform. Use the text box to describe your task.',
+        ? 'Add now to save the task immediately, or plan tasks to let AI break down your request.'
+        : 'Voice capture is unavailable on this platform. Use the text box and Add now to capture tasks.',
     [speechAdapter?.supported]
   );
 
@@ -194,12 +267,30 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
           <Text style={styles.buttonText}>Clear</Text>
         </Pressable>
         <Pressable
-          style={[styles.button, styles.primary, submitting && styles.buttonDisabled]}
+          style={[styles.button, path === 'add' ? styles.primary : styles.secondary, submitting && styles.buttonDisabled]}
           accessibilityRole="button"
-          onPress={decompose}
+          onPress={() => {
+            setPath('add');
+            void addNow();
+          }}
           disabled={submitting || input.trim().length === 0}
         >
-          <Text style={styles.primaryText}>{submitting ? 'Planning…' : 'Plan tasks'}</Text>
+          <Text style={path === 'add' ? styles.primaryText : styles.buttonText}>
+            {submitting && path === 'add' ? 'Adding…' : 'Add now'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.button, path === 'plan' ? styles.primary : styles.secondary, submitting && styles.buttonDisabled]}
+          accessibilityRole="button"
+          onPress={() => {
+            setPath('plan');
+            void decompose();
+          }}
+          disabled={submitting || input.trim().length === 0}
+        >
+          <Text style={path === 'plan' ? styles.primaryText : styles.buttonText}>
+            {submitting && path === 'plan' ? 'Planning…' : 'Plan tasks'}
+          </Text>
         </Pressable>
       </View>
       {error ? <Paragraph style={styles.error}>{error}</Paragraph> : null}
