@@ -1,15 +1,13 @@
 import { SevnFocusScreen } from '@acme/feature-home';
 import { TaskComposer } from '@acme/ui';
 import type { TaskAnalyticsEvent } from '@acme/task-core';
-import { Image } from 'expo-image';
-import { Link } from 'expo-router';
 import { useCallback } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { AuthGate } from '@/components/auth-gate';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { defaultOwnerId, useTaskClient } from '@/hooks/useTaskClient';
+import { useTaskClient } from '@/hooks/useTaskClient';
 import { useSpeechAdapter } from '@/hooks/useSpeechAdapter';
 
 export default function HomeScreen() {
@@ -21,67 +19,60 @@ export default function HomeScreen() {
   );
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('../../../example/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Sevn Focus</ThemedText>
-        <ThemedText>Keep your attention anchored to what matters most.</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <SevnFocusScreen style={styles.focusCard}>
-          <ThemedText>
-            Pin this focus screen in the Sevn browser extension to stay present while you work.
-          </ThemedText>
-          <ThemedText style={styles.caption}>
-            The same shared UI powers both the mobile app and the extension view.
-          </ThemedText>
-          <Link href="/modal">
-            <Link.Trigger>
-              <ThemedText type="link">Open quick actions</ThemedText>
-            </Link.Trigger>
-          </Link>
-          <TaskComposer
-            client={client}
-            ownerId={defaultOwnerId}
-            speechAdapter={speechAdapter}
-            analytics={logAnalytics}
-          />
-        </SevnFocusScreen>
-      </ThemedView>
-    </ParallaxScrollView>
+    <AuthGate client={client}>
+      {({ ownerId, signOut, client: authedClient }) => (
+        <ThemedView style={styles.screen}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            contentInsetAdjustmentBehavior="automatic"
+            showsVerticalScrollIndicator={false}
+          >
+            <ThemedView style={styles.headerRow}>
+              <ThemedText type="title">Sevn Focus</ThemedText>
+              <Pressable accessibilityRole="button" onPress={signOut}>
+                <ThemedText type="link">Sign out</ThemedText>
+              </Pressable>
+            </ThemedView>
+
+            <SevnFocusScreen style={styles.focusCard} ownerId={ownerId} client={authedClient} />
+
+            <ThemedView style={styles.composerCard}>
+              <TaskComposer
+                client={authedClient}
+                ownerId={ownerId}
+                speechAdapter={speechAdapter}
+                analytics={logAnalytics}
+              />
+            </ThemedView>
+          </ScrollView>
+        </ThemedView>
+      )}
+    </AuthGate>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  screen: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  content: {
+    gap: 16,
+    padding: 16,
+  },
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   focusCard: {
     alignItems: 'flex-start',
     gap: 12,
   },
-  caption: {
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  composerCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#0f172a',
+    padding: 12,
+    backgroundColor: '#0b1021',
   },
 });
