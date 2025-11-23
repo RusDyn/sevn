@@ -17,18 +17,23 @@ export type TaskQueueBoardProps = {
 const VISIBLE_POSITIONS = Array.from({ length: 7 }).map((_, index) => index + 1);
 
 export const TaskQueueBoard = ({ client, ownerId, streak, onPressTask }: TaskQueueBoardProps) => {
-  const { data, loading, completeTask, deleteTask, deprioritizeTask } = useRealtimeTaskQueue(
-    client,
-    { ownerId, enabled: Boolean(ownerId) }
-  );
+  const enabled = Boolean(ownerId);
+
+  const { data, loading, completeTask, deleteTask, deprioritizeTask } = useRealtimeTaskQueue(client, {
+    ownerId,
+    enabled,
+  });
+
+  const queue = enabled ? data : [];
+  const isLoading = enabled && loading;
 
   const tasksByPosition = useMemo(
     () =>
-      data.reduce<Record<number, TaskRow>>((positions, task) => {
+      queue.reduce<Record<number, TaskRow>>((positions, task) => {
         positions[task.position] = task;
         return positions;
       }, {}),
-    [data]
+    [queue]
   );
 
   return (
@@ -49,7 +54,7 @@ export const TaskQueueBoard = ({ client, ownerId, streak, onPressTask }: TaskQue
                 onDeprioritize={() => deprioritizeTask(tasksByPosition[position].id)}
                 onPress={onPressTask}
               />
-            ) : loading ? (
+            ) : isLoading ? (
               <EmptyQueueState position={position} message="Loading task..." />
             ) : (
               <EmptyQueueState position={position} />
