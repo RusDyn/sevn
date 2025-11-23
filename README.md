@@ -18,7 +18,7 @@ Sevn keeps you anchored to the seven tasks that matter most. The app centres aro
 - `pnpm build:sevn` – Export the Sevn app bundles for web and native builds.
 - `pnpm lint` – Run ESLint across all workspaces.
 - `pnpm --filter @acme/extension dev` – Start the extension in development with Vite.
-- `pnpm --filter @acme/extension build` – Type-check and bundle the extension for distribution.
+- `pnpm build:extension` – Type-check and bundle the extension for distribution.
 
 ## MVP scope
 - Implemented: Supabase email/password login, viewing the seven-task focus queue, adding tasks to the queue, and the three swipe actions (complete, delete, deprioritize).

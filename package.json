@@ -3,13 +3,13 @@
   "name": "@acme/monorepo",
   "scripts": {
     "dev": "turbo dev",
-    "dev:example": "turbo dev --filter=\"{./apps/example}...\"",
     "dev:sevn": "turbo dev --filter=\"{./apps/sevn}...\"",
+    "dev:extension": "turbo dev --filter=\"{./apps/extension}...\"",
     "lint": "turbo lint",
     "test": "turbo test",
     "build": "turbo build",
-    "build:example": "turbo build --filter=\"...{./apps/example}\"",
-    "build:sevn": "turbo build --filter=\"...{./apps/sevn}\""
+    "build:sevn": "turbo build --filter=\"...{./apps/sevn}\"",
+    "build:extension": "turbo build --filter=\"...{./apps/extension}\""
   },
   "devDependencies": {
     "turbo": "^2.5.6",
