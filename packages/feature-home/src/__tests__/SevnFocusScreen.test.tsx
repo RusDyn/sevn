@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react-native';
-import { useTaskSession } from '@acme/task-core';
+import { useEnvTaskClient, useTaskSession } from '@acme/task-core';
 
 import { SevnFocusScreen } from '../SevnFocusScreen';
 
@@ -7,16 +7,19 @@ jest.mock('@acme/task-core', () => {
   const actual = jest.requireActual('@acme/task-core');
   return {
     ...actual,
-    useEnvTaskClient: jest.fn(() => null),
+    useEnvTaskClient: jest.fn(),
     useTaskSession: jest.fn(),
   };
 });
 
+const mockUseEnvTaskClient = useEnvTaskClient as jest.MockedFunction<typeof useEnvTaskClient>;
 const mockUseTaskSession = useTaskSession as jest.MockedFunction<typeof useTaskSession>;
+const stubClient = {} as never;
 
 beforeEach(() => {
+  mockUseEnvTaskClient.mockReturnValue(stubClient);
   mockUseTaskSession.mockReturnValue({
-    client: {} as never,
+    client: stubClient,
     session: { user: { id: 'owner-123' } } as never,
     ownerId: 'owner-123',
     status: 'authenticated',
