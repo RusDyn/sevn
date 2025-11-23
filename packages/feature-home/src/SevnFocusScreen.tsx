@@ -1,6 +1,7 @@
 import {
   deriveFocusMessages,
   initialProgressSnapshot,
+  type TaskClient,
   useTaskClient,
   type FocusMessage,
 } from '@acme/task-core';
@@ -11,6 +12,8 @@ import { StyleSheet, View } from 'react-native';
 export type SevnFocusScreenProps = ComponentProps<typeof View> & {
   title?: string;
   messages?: Partial<FocusMessage>;
+  client?: TaskClient | null;
+  ownerId?: string;
 };
 
 const defaultMessages = deriveFocusMessages(initialProgressSnapshot);
@@ -41,6 +44,8 @@ const resolveSupabaseKey = () => {
 export const SevnFocusScreen = ({
   title = 'Sevn Focus',
   messages,
+  client,
+  ownerId,
   style,
   children,
   ...props
@@ -53,36 +58,42 @@ export const SevnFocusScreen = ({
   );
   const clientConfig = useMemo(
     () =>
-      supabaseUrl && supabaseKey
-        ? { supabaseKey, supabaseUrl, authStorageKey: 'sevn-focus-auth' }
-        : null,
-    [supabaseKey, supabaseUrl],
+      client || !supabaseUrl || !supabaseKey
+        ? null
+        : { supabaseKey, supabaseUrl, authStorageKey: 'sevn-focus-auth' },
+    [client, supabaseKey, supabaseUrl],
   );
-  const client = useTaskClient(clientConfig);
-  const [ownerId, setOwnerId] = useState<string | undefined>();
+  const derivedClient = useTaskClient(clientConfig);
+  const resolvedClient = client ?? derivedClient;
+  const [resolvedOwnerId, setResolvedOwnerId] = useState<string | undefined>(ownerId);
 
   useEffect(() => {
     let mounted = true;
 
     const syncOwnerId = async () => {
-      if (!client) {
-        setOwnerId(undefined);
+      if (ownerId !== undefined) {
+        setResolvedOwnerId(ownerId);
         return;
       }
 
-      const { data } = await client.client.auth.getUser();
+      if (!resolvedClient) {
+        setResolvedOwnerId(undefined);
+        return;
+      }
+
+      const { data } = await resolvedClient.client.auth.getUser();
       if (mounted) {
-        setOwnerId(data.user?.id ?? undefined);
+        setResolvedOwnerId(data.user?.id ?? undefined);
       }
     };
 
     void syncOwnerId();
 
-    if (!client) return undefined;
+    if (!resolvedClient || ownerId !== undefined) return undefined;
 
-    const { data: listener } = client.client.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = resolvedClient.client.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
-        setOwnerId(session?.user?.id ?? undefined);
+        setResolvedOwnerId(session?.user?.id ?? undefined);
       }
     });
 
@@ -90,13 +101,13 @@ export const SevnFocusScreen = ({
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [client]);
+  }, [ownerId, resolvedClient]);
 
   return (
     <View {...props} style={[styles.container, style]}>
       <Paragraph style={styles.title}>{title}</Paragraph>
       <Paragraph style={styles.subtitle}>{mergedMessages.header}</Paragraph>
-      <TaskQueueBoard client={client} ownerId={ownerId} />
+      <TaskQueueBoard client={resolvedClient} ownerId={resolvedOwnerId} />
       {children ? <View style={styles.slots}>{children}</View> : null}
       <Paragraph style={styles.footer}>{mergedMessages.footer ?? null}</Paragraph>
     </View>
