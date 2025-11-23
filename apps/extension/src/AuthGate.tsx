@@ -1,17 +1,32 @@
 import type { TaskClient } from '@sevn/task-core';
 import { useTaskSession } from '@sevn/task-core';
+import { Paragraph, Strong } from '@sevn/ui';
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Paragraph, Strong } from '@sevn/ui';
 
 export type AuthGateProps = {
   client: TaskClient | null;
-  children: (context: { ownerId: string; client: TaskClient; signOut: () => Promise<void> }) => ReactNode;
+  children: (context: {
+    ownerId: string;
+    client: TaskClient;
+    signOut: () => Promise<void>;
+  }) => ReactNode;
 };
 
 export const AuthGate = ({ client, children }: AuthGateProps) => {
-  const { client: authedClient, ownerId, loading, status, invalidSession, signInWithEmail, signOut } =
-    useTaskSession(client);
+  const {
+    client: authedClient,
+    ownerId,
+    loading,
+    status,
+    invalidSession,
+    signInWithEmail,
+    signOut,
+  } = useTaskSession(client);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   if (status === 'missing-client') {
     return (
@@ -19,7 +34,9 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
         <Paragraph style={styles.heading}>
           <Strong>Connect to Supabase</Strong>
         </Paragraph>
-        <Paragraph style={styles.helper}>Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sign in.</Paragraph>
+        <Paragraph style={styles.helper}>
+          Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sign in.
+        </Paragraph>
       </View>
     );
   }
@@ -39,8 +56,10 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
         <Paragraph style={styles.heading}>
           <Strong>Session needs attention</Strong>
         </Paragraph>
-        <Paragraph style={styles.helper}>We couldn&apos;t restore your account. Please sign in again.</Paragraph>
-        <Pressable accessibilityRole="button" style={styles.button} onPress={() => void signOut()}>
+        <Paragraph style={styles.helper}>
+          We couldn&apos;t restore your account. Please sign in again.
+        </Paragraph>
+        <Pressable accessibilityRole="button" style={styles.button} onPress={handleSignOut}>
           <Paragraph style={styles.buttonText}>Reset session</Paragraph>
         </Pressable>
       </View>
@@ -51,7 +70,7 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
     return <SignInPanel onSubmit={signInWithEmail} />;
   }
 
-  return <>{children({ ownerId, client: authedClient, signOut: async () => void signOut() })}</>;
+  return <>{children({ ownerId, client: authedClient, signOut: handleSignOut })}</>;
 };
 
 const SignInPanel = ({

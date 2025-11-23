@@ -1,3 +1,4 @@
+/* eslint-disable no-var, @typescript-eslint/no-redeclare */
 // Type declarations for Web Speech API
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;
