@@ -19,7 +19,7 @@ const VISIBLE_POSITIONS = Array.from({ length: 7 }).map((_, index) => index + 1)
 export const TaskQueueBoard = ({ client, ownerId, streak, onPressTask }: TaskQueueBoardProps) => {
   const { data, loading, completeTask, deleteTask, deprioritizeTask } = useRealtimeTaskQueue(
     client,
-    { ownerId }
+    { ownerId, enabled: Boolean(ownerId) }
   );
 
   const tasksByPosition = useMemo(

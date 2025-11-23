@@ -51,11 +51,14 @@ export const SevnFocusScreen = ({
     () => ({ ...defaultMessages, ...messages }),
     [messages],
   );
-  const client = useTaskClient(
-    supabaseUrl && supabaseKey
-      ? { supabaseKey, supabaseUrl, authStorageKey: 'sevn-focus-auth' }
-      : null,
+  const clientConfig = useMemo(
+    () =>
+      supabaseUrl && supabaseKey
+        ? { supabaseKey, supabaseUrl, authStorageKey: 'sevn-focus-auth' }
+        : null,
+    [supabaseKey, supabaseUrl],
   );
+  const client = useTaskClient(clientConfig);
   const [ownerId, setOwnerId] = useState<string | undefined>();
 
   useEffect(() => {
