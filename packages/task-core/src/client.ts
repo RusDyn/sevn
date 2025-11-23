@@ -1,4 +1,5 @@
 import { createClient, type PostgrestError, type Provider } from '@supabase/supabase-js';
+
 import { applyPositionsToDrafts } from './decomposition';
 import type {
   Database,
@@ -54,7 +55,8 @@ export const createTaskClient = ({
 
   const getTask = (id: string) => client.from('tasks').select('*').eq('id', id).single();
 
-  const createTask = (payload: TaskInsert) => client.from('tasks').insert(payload).select().single();
+  const createTask = (payload: TaskInsert) =>
+    client.from('tasks').insert(payload).select().single();
 
   const updateTask = (id: string, payload: TaskUpdate) =>
     client.from('tasks').update(payload).eq('id', id).select().single();
@@ -64,11 +66,7 @@ export const createTaskClient = ({
       return scope.ownerId;
     }
 
-    const { data, error } = await client
-      .from('tasks')
-      .select('owner_id')
-      .eq('id', taskId)
-      .single();
+    const { data, error } = await client.from('tasks').select('owner_id').eq('id', taskId).single();
 
     if (error) {
       throw error;
@@ -85,21 +83,21 @@ export const createTaskClient = ({
     withQueueRpcFallback(
       'delete_task_and_resequence',
       { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => deleteAndResequence(id, scope),
+      () => deleteAndResequence(id, scope)
     );
 
   const completeTask = async (id: string, scope?: { ownerId?: string }) =>
     withQueueRpcFallback(
       'complete_task_and_resequence',
       { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => completeAndResequence(id, scope),
+      () => completeAndResequence(id, scope)
     );
 
   const deprioritizeTask = async (id: string, scope?: { ownerId?: string }) =>
     withQueueRpcFallback(
       'deprioritize_task_to_bottom',
       { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => deprioritizeWithoutRpc(id, scope),
+      () => deprioritizeWithoutRpc(id, scope)
     );
 
   const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
@@ -110,7 +108,7 @@ export const createTaskClient = ({
         p_to_index: move.toIndex,
         p_owner: await resolveOwnerId(move.taskId, scope),
       },
-      () => reorderWithoutRpc(move, scope),
+      () => reorderWithoutRpc(move, scope)
     );
 
   const decomposeTasks = async (input: TaskDecompositionRequest) =>
@@ -158,7 +156,7 @@ export const createTaskClient = ({
   const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
     fnName: string,
     params: Params,
-    fallback: () => Promise<{ data: TaskRow[] | null; error: unknown }>,
+    fallback: () => Promise<{ data: TaskRow[] | null; error: unknown }>
   ) => {
     const { data, error } = await client.rpc(fnName, params as never);
 
@@ -187,7 +185,12 @@ export const createTaskClient = ({
     }
 
     await Promise.all(
-      active.map((task, index) => client.from('tasks').update({ position: index + 1 }).eq('id', task.id)),
+      active.map((task, index) =>
+        client
+          .from('tasks')
+          .update({ position: index + 1 })
+          .eq('id', task.id)
+      )
     );
 
     return fetchActiveTasks(ownerId);
@@ -224,7 +227,10 @@ export const createTaskClient = ({
     }
 
     const lastPosition = active.length + 1;
-    const { error: updateError } = await client.from('tasks').update({ position: lastPosition }).eq('id', taskId);
+    const { error: updateError } = await client
+      .from('tasks')
+      .update({ position: lastPosition })
+      .eq('id', taskId);
     if (updateError) {
       return { data: null, error: updateError };
     }
@@ -249,7 +255,12 @@ export const createTaskClient = ({
     }
 
     await Promise.all(
-      remaining.map((task, index) => client.from('tasks').update({ position: index + 1 }).eq('id', task.id)),
+      remaining.map((task, index) =>
+        client
+          .from('tasks')
+          .update({ position: index + 1 })
+          .eq('id', task.id)
+      )
     );
 
     return fetchActiveTasks(ownerId);
@@ -280,6 +291,9 @@ export const createTaskClient = ({
 };
 
 const isMissingFunctionError = (error: { message?: string }) =>
-  Boolean(error.message?.toLowerCase().includes('function') && error.message?.toLowerCase().includes('does not exist'));
+  Boolean(
+    error.message?.toLowerCase().includes('function') &&
+      error.message?.toLowerCase().includes('does not exist')
+  );
 
 const isPositionConflictError = (error: PostgrestError) => error.code === '23505';

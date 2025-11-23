@@ -6,7 +6,9 @@ import { TaskComposer } from '../task-queue/TaskComposer';
 describe('TaskComposer', () => {
   const mockClient: TaskClient = {
     decomposition: {
-      generate: jest.fn().mockResolvedValue({ data: { tasks: [{ title: 'Step one' }] }, error: null }),
+      generate: jest
+        .fn()
+        .mockResolvedValue({ data: { tasks: [{ title: 'Step one' }] }, error: null }),
       enqueue: jest.fn().mockResolvedValue({ data: [{ id: '1' }], error: null } as any),
     },
   } as unknown as TaskClient;
@@ -25,8 +27,12 @@ describe('TaskComposer', () => {
 
     fireEvent.press(getByText('Enqueue tasks'));
 
-    await waitFor(() => expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls.length).toBe(1));
-    expect(analytics).toHaveBeenCalledWith(expect.objectContaining({ name: 'decomposition_ready' }));
+    await waitFor(() =>
+      expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls.length).toBe(1)
+    );
+    expect(analytics).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'decomposition_ready' })
+    );
     expect(analytics).toHaveBeenCalledWith(expect.objectContaining({ name: 'tasks_enqueued' }));
   });
 });

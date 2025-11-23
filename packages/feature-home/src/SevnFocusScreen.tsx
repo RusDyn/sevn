@@ -6,7 +6,12 @@ export type SevnFocusScreenProps = ComponentProps<typeof View> & {
   title?: string;
 };
 
-export const SevnFocusScreen = ({ title = 'Sevn Focus', style, children, ...props }: SevnFocusScreenProps) => (
+export const SevnFocusScreen = ({
+  title = 'Sevn Focus',
+  style,
+  children,
+  ...props
+}: SevnFocusScreenProps) => (
   <View {...props} style={[styles.container, style]}>
     <Paragraph style={styles.title}>{title}</Paragraph>
     <Paragraph style={styles.subtitle}>

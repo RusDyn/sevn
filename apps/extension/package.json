@@ -11,8 +11,8 @@
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
-    "@acme/task-core": "workspace:*",
     "@acme/feature-home": "workspace:*",
+    "@acme/task-core": "workspace:*",
     "@acme/ui": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -23,8 +23,9 @@
     "@acme/eslint-config": "workspace:*",
     "@types/react": "~19.1.12",
     "@types/react-dom": "~19.1.5",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^8.57.0",
+    "sharp": "^0.34.5",
     "typescript": "~5.9.2",
     "vite": "^5.4.9"
   },

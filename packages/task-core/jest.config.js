@@ -7,5 +7,5 @@ module.exports = {
     '^.+\\.(ts|tsx)$': ['babel-jest', { presets: ['@babel/preset-typescript'] }],
   },
   collectCoverage: true,
-  coverageDirectory: '<rootDir>/coverage'
+  coverageDirectory: '<rootDir>/coverage',
 };

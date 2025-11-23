@@ -10,13 +10,13 @@
   "permissions": ["storage"],
   "host_permissions": ["https://*.supabase.co/*"],
   "icons": {
-    "48": "icon.svg",
-    "128": "icon.svg",
-    "256": "icon.svg"
+    "48": "icon48.png",
+    "128": "icon128.png",
+    "256": "icon256.png"
   },
   "web_accessible_resources": [
     {
-      "resources": ["icon.svg"],
+      "resources": ["icon.svg", "icon48.png", "icon128.png", "icon256.png"],
       "matches": ["<all_urls>"]
     }
   ]
