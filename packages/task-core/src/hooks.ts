@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { createTaskClient, type TaskClient, type TaskClientConfig } from './client';
+import { resolveSupabaseConfig } from './config';
 import {
   deriveVisibleQueue,
   normalizeQueuePositions,
@@ -13,6 +14,10 @@ type QueueSubscriptionChange = RealtimePostgresChangesPayload<TaskRow>;
 
 export const useTaskClient = (config: TaskClientConfig | null): TaskClient | null =>
   useMemo(() => (config ? createTaskClient(config) : null), [config]);
+
+const envSupabaseConfig = resolveSupabaseConfig();
+
+export const useEnvTaskClient = () => useTaskClient(envSupabaseConfig);
 
 export const useTasks = (
   client: TaskClient | null,

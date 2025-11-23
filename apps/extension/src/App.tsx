@@ -1,8 +1,9 @@
 import { Paragraph, Strong, TaskComposer, TaskQueueBoard } from '@acme/ui';
 import type { TaskAnalyticsEvent } from '@acme/task-core';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { defaultOwnerId, taskClient } from './taskClient';
+import { AuthGate } from './AuthGate';
+import { taskClient } from './taskClient';
 
 const logAnalytics = (event: TaskAnalyticsEvent) => {
   console.info('[extension-analytics]', event.name, event.properties ?? {});
@@ -19,12 +20,24 @@ function App() {
           Manage tasks with swipes or the toolbar buttons beneath each card.
         </Paragraph>
       </View>
-      <View style={styles.card}>
-        <TaskQueueBoard client={taskClient} ownerId={defaultOwnerId} />
-      </View>
-      <View style={styles.card}>
-        <TaskComposer client={taskClient} ownerId={defaultOwnerId} analytics={logAnalytics} />
-      </View>
+      <AuthGate client={taskClient}>
+        {({ client, ownerId, signOut }) => (
+          <>
+            <View style={[styles.card, styles.row]}> 
+              <Paragraph style={styles.helper}>Signed in as {ownerId}</Paragraph>
+              <Pressable accessibilityRole="button" onPress={signOut}>
+                <Paragraph style={styles.link}>Sign out</Paragraph>
+              </Pressable>
+            </View>
+            <View style={styles.card}>
+              <TaskQueueBoard client={client} ownerId={ownerId} />
+            </View>
+            <View style={styles.card}>
+              <TaskComposer client={client} ownerId={ownerId} analytics={logAnalytics} />
+            </View>
+          </>
+        )}
+      </AuthGate>
     </View>
   );
 }
@@ -60,5 +73,14 @@ const styles = StyleSheet.create({
   helper: {
     color: '#e5e7eb',
     lineHeight: 20,
+  },
+  link: {
+    color: '#38bdf8',
+    fontWeight: '700',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });
