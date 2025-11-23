@@ -1,4 +1,5 @@
 import { createClient, type PostgrestError, type Provider } from '@supabase/supabase-js';
+import { SEVN_AUTH_STORAGE_KEY } from './config';
 import { applyPositionsToDrafts } from './decomposition';
 import type {
   Database,
@@ -23,7 +24,7 @@ export type TaskClient = ReturnType<typeof createTaskClient>;
 export const createTaskClient = ({
   supabaseKey,
   supabaseUrl,
-  authStorageKey = 'task-core-auth',
+  authStorageKey = SEVN_AUTH_STORAGE_KEY,
 }: TaskClientConfig) => {
   const client = createClient<Database>(supabaseUrl, supabaseKey, {
     auth: {

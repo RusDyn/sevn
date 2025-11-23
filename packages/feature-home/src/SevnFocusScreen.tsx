@@ -3,10 +3,11 @@ import {
   initialProgressSnapshot,
   type TaskClient,
   useEnvTaskClient,
+  useTaskSession,
   type FocusMessage,
 } from '@acme/task-core';
 import { Paragraph, TaskQueueBoard } from '@acme/ui';
-import { ComponentProps, useEffect, useMemo, useState } from 'react';
+import { ComponentProps, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 export type SevnFocusScreenProps = ComponentProps<typeof View> & {
@@ -33,45 +34,10 @@ export const SevnFocusScreen = ({
   );
   const derivedClient = useEnvTaskClient();
   const resolvedClient = client ?? derivedClient;
-  const [resolvedOwnerId, setResolvedOwnerId] = useState<string | undefined>(ownerId);
+  const { ownerId: sessionOwnerId, status, loading } = useTaskSession(resolvedClient);
+  const resolvedOwnerId = ownerId ?? sessionOwnerId ?? undefined;
 
-  useEffect(() => {
-    let mounted = true;
-
-    const syncOwnerId = async () => {
-      if (ownerId !== undefined) {
-        setResolvedOwnerId(ownerId);
-        return;
-      }
-
-      if (!resolvedClient) {
-        setResolvedOwnerId(undefined);
-        return;
-      }
-
-      const { data } = await resolvedClient.client.auth.getUser();
-      if (mounted) {
-        setResolvedOwnerId(data.user?.id ?? undefined);
-      }
-    };
-
-    void syncOwnerId();
-
-    if (!resolvedClient || ownerId !== undefined) return undefined;
-
-    const { data: listener } = resolvedClient.client.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setResolvedOwnerId(session?.user?.id ?? undefined);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [ownerId, resolvedClient]);
-
-  if (!resolvedClient) {
+  if (!resolvedClient || status === 'missing-client') {
     return (
       <View {...props} style={[styles.container, style]}>
         <Paragraph style={styles.title}>{title}</Paragraph>
@@ -80,7 +46,16 @@ export const SevnFocusScreen = ({
     );
   }
 
-  if (!resolvedOwnerId) {
+  if (loading) {
+    return (
+      <View {...props} style={[styles.container, style]}>
+        <Paragraph style={styles.title}>{title}</Paragraph>
+        <Paragraph style={styles.subtitle}>Restoring your session…</Paragraph>
+      </View>
+    );
+  }
+
+  if (!resolvedOwnerId || status === 'invalid-session') {
     return (
       <View {...props} style={[styles.container, style]}>
         <Paragraph style={styles.title}>{title}</Paragraph>

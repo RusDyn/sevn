@@ -1,52 +1,19 @@
 import type { TaskClient } from '@acme/task-core';
-import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useTaskSession } from '@acme/task-core';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Paragraph, Strong } from '@acme/ui';
 
 export type AuthGateProps = {
   client: TaskClient | null;
-  children: (context: { ownerId: string; session: Session; client: TaskClient; signOut: () => Promise<void> }) => ReactNode;
+  children: (context: { ownerId: string; client: TaskClient; signOut: () => Promise<void> }) => ReactNode;
 };
 
 export const AuthGate = ({ client, children }: AuthGateProps) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { client: authedClient, ownerId, loading, status, invalidSession, signInWithEmail, signOut } =
+    useTaskSession(client);
 
-  useEffect(() => {
-    if (!client) {
-      setSession(null);
-      setLoading(false);
-      return undefined;
-    }
-
-    let mounted = true;
-    setLoading(true);
-
-    const resolveSession = async () => {
-      const { data } = await client.client.auth.getSession();
-      if (mounted) {
-        setSession(data.session ?? null);
-        setLoading(false);
-      }
-    };
-
-    void resolveSession();
-
-    const { data: listener } = client.client.auth.onAuthStateChange((_event, nextSession) => {
-      if (mounted) {
-        setSession(nextSession);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      listener?.subscription.unsubscribe();
-    };
-  }, [client]);
-
-  if (!client) {
+  if (status === 'missing-client') {
     return (
       <View style={styles.panel}>
         <Paragraph style={styles.heading}>
@@ -66,14 +33,32 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
     );
   }
 
-  if (!session?.user?.id) {
-    return <SignInPanel client={client} />;
+  if (invalidSession) {
+    return (
+      <View style={styles.panel}>
+        <Paragraph style={styles.heading}>
+          <Strong>Session needs attention</Strong>
+        </Paragraph>
+        <Paragraph style={styles.helper}>We couldn&apos;t restore your account. Please sign in again.</Paragraph>
+        <Pressable accessibilityRole="button" style={styles.button} onPress={() => void signOut()}>
+          <Paragraph style={styles.buttonText}>Reset session</Paragraph>
+        </Pressable>
+      </View>
+    );
   }
 
-  return <>{children({ ownerId: session.user.id, session, client, signOut: client.auth.signOut })}</>;
+  if (!ownerId || !authedClient) {
+    return <SignInPanel onSubmit={signInWithEmail} />;
+  }
+
+  return <>{children({ ownerId, client: authedClient, signOut: async () => void signOut() })}</>;
 };
 
-const SignInPanel = ({ client }: { client: TaskClient }) => {
+const SignInPanel = ({
+  onSubmit,
+}: {
+  onSubmit: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
+}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -84,7 +69,7 @@ const SignInPanel = ({ client }: { client: TaskClient }) => {
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
-    const { error: signInError } = await client.auth.signInWithEmail(email.trim(), password);
+    const { error: signInError } = await onSubmit(email.trim(), password);
     if (signInError) {
       setError(signInError.message ?? 'Unable to sign in.');
     }

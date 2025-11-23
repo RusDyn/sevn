@@ -1,6 +1,35 @@
 import { render, screen } from '@testing-library/react-native';
+import { useTaskSession } from '@acme/task-core';
 
 import { SevnFocusScreen } from '../SevnFocusScreen';
+
+jest.mock('@acme/task-core', () => {
+  const actual = jest.requireActual('@acme/task-core');
+  return {
+    ...actual,
+    useEnvTaskClient: jest.fn(() => null),
+    useTaskSession: jest.fn(),
+  };
+});
+
+const mockUseTaskSession = useTaskSession as jest.MockedFunction<typeof useTaskSession>;
+
+beforeEach(() => {
+  mockUseTaskSession.mockReturnValue({
+    client: {} as never,
+    session: { user: { id: 'owner-123' } } as never,
+    ownerId: 'owner-123',
+    status: 'authenticated',
+    loading: false,
+    invalidSession: false,
+    signInWithEmail: jest.fn(),
+    signOut: jest.fn(),
+  });
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
 
 describe('SevnFocusScreen', () => {
   it('shows calm header and footer messages by default', () => {
