@@ -2,7 +2,7 @@ import {
   deriveFocusMessages,
   initialProgressSnapshot,
   type TaskClient,
-  useTaskClient,
+  useEnvTaskClient,
   type FocusMessage,
 } from '@acme/task-core';
 import { Paragraph, TaskQueueBoard } from '@acme/ui';
@@ -17,29 +17,6 @@ export type SevnFocusScreenProps = ComponentProps<typeof View> & {
 };
 
 const defaultMessages = deriveFocusMessages(initialProgressSnapshot);
-const resolveSupabaseUrl = () => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.EXPO_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-  }
-
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL;
-  }
-
-  return undefined;
-};
-
-const resolveSupabaseKey = () => {
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
-  }
-
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_ANON_KEY;
-  }
-
-  return undefined;
-};
 
 export const SevnFocusScreen = ({
   title = 'Sevn Focus',
@@ -50,20 +27,11 @@ export const SevnFocusScreen = ({
   children,
   ...props
 }: SevnFocusScreenProps) => {
-  const supabaseUrl = resolveSupabaseUrl();
-  const supabaseKey = resolveSupabaseKey();
   const mergedMessages = useMemo(
     () => ({ ...defaultMessages, ...messages }),
     [messages],
   );
-  const clientConfig = useMemo(
-    () =>
-      client || !supabaseUrl || !supabaseKey
-        ? null
-        : { supabaseKey, supabaseUrl, authStorageKey: 'sevn-focus-auth' },
-    [client, supabaseKey, supabaseUrl],
-  );
-  const derivedClient = useTaskClient(clientConfig);
+  const derivedClient = useEnvTaskClient();
   const resolvedClient = client ?? derivedClient;
   const [resolvedOwnerId, setResolvedOwnerId] = useState<string | undefined>(ownerId);
 
@@ -102,6 +70,24 @@ export const SevnFocusScreen = ({
       listener.subscription.unsubscribe();
     };
   }, [ownerId, resolvedClient]);
+
+  if (!resolvedClient) {
+    return (
+      <View {...props} style={[styles.container, style]}>
+        <Paragraph style={styles.title}>{title}</Paragraph>
+        <Paragraph style={styles.subtitle}>Connect to Supabase to view your focus queue.</Paragraph>
+      </View>
+    );
+  }
+
+  if (!resolvedOwnerId) {
+    return (
+      <View {...props} style={[styles.container, style]}>
+        <Paragraph style={styles.title}>{title}</Paragraph>
+        <Paragraph style={styles.subtitle}>Sign in to load your latest tasks.</Paragraph>
+      </View>
+    );
+  }
 
   return (
     <View {...props} style={[styles.container, style]}>
