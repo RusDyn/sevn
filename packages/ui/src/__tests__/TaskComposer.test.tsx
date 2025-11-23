@@ -1,4 +1,4 @@
-import type { TaskClient } from '@acme/task-core';
+import type { TaskClient } from '@sevn/task-core';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { TaskComposer } from '../task-queue/TaskComposer';

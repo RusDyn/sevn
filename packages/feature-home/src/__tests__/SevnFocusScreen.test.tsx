@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react-native';
-import { useEnvTaskClient, useRealtimeTaskQueue, useTaskSession } from '@acme/task-core';
+import { useEnvTaskClient, useRealtimeTaskQueue, useTaskSession } from '@sevn/task-core';
 
 import { SevnFocusScreen } from '../SevnFocusScreen';
 
-jest.mock('@acme/task-core', () => {
-  const actual = jest.requireActual('@acme/task-core');
+jest.mock('@sevn/task-core', () => {
+  const actual = jest.requireActual('@sevn/task-core');
   return {
     ...actual,
     useEnvTaskClient: jest.fn(),

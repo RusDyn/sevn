@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { EventEmitter, NativeModulesProxy } from 'expo-modules-core';
 
-import type { SpeechAdapter } from '@acme/ui';
+import type { SpeechAdapter } from '@sevn/ui';
 
 const createWebAdapter = (): SpeechAdapter => {
   if (Platform.OS !== 'web') return { supported: false, start: async () => Promise.resolve() };

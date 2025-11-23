@@ -1,5 +1,5 @@
-import type { QueueMove, TaskClient, TaskDraft, TaskRow } from '@acme/task-core';
-import { deriveVisibleQueue, normalizeQueuePositions, reorderQueue, useRealtimeTaskQueue } from '@acme/task-core';
+import type { QueueMove, TaskClient, TaskDraft, TaskRow } from '@sevn/task-core';
+import { deriveVisibleQueue, normalizeQueuePositions, reorderQueue, useRealtimeTaskQueue } from '@sevn/task-core';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -21,8 +21,8 @@ jest.mock('react-native-gesture-handler', () => ({
   },
 }));
 
-jest.mock('@acme/task-core', () => {
-  const actual = jest.requireActual('@acme/task-core');
+jest.mock('@sevn/task-core', () => {
+  const actual = jest.requireActual('@sevn/task-core');
   return { ...actual, useRealtimeTaskQueue: jest.fn() };
 });
 

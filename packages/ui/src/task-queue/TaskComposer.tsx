@@ -1,4 +1,4 @@
-import { applyPositionsToDrafts, type TaskAnalyticsEvent, type TaskClient, type TaskDraft } from '@acme/task-core';
+import { applyPositionsToDrafts, type TaskAnalyticsEvent, type TaskClient, type TaskDraft } from '@sevn/task-core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 

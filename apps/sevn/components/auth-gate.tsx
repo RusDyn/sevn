@@ -1,5 +1,5 @@
-import type { TaskClient } from '@acme/task-core';
-import { useTaskSession } from '@acme/task-core';
+import type { TaskClient } from '@sevn/task-core';
+import { useTaskSession } from '@sevn/task-core';
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 

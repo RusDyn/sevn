@@ -17,7 +17,7 @@ Sevn keeps you anchored to the seven tasks that matter most. The app centres aro
 - `pnpm dev:sevn` – Start the Sevn Expo app (mobile + web) in development mode.
 - `pnpm build:sevn` – Export the Sevn app bundles for web and native builds.
 - `pnpm lint` – Run ESLint across all workspaces.
-- `pnpm --filter @acme/extension dev` – Start the extension in development with Vite.
+- `pnpm --filter @sevn/extension dev` – Start the extension in development with Vite.
 - `pnpm build:extension` – Type-check and bundle the extension for distribution.
 
 ## MVP scope

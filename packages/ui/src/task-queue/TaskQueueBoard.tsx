@@ -1,5 +1,5 @@
-import type { TaskClient, TaskRow } from '@acme/task-core';
-import { useRealtimeTaskQueue } from '@acme/task-core';
+import type { TaskClient, TaskRow } from '@sevn/task-core';
+import { useRealtimeTaskQueue } from '@sevn/task-core';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
