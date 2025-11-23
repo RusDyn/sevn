@@ -14,7 +14,7 @@ const buildTasks = (count: number) =>
   }));
 
 const buildQueueTask = (id: string, position: number, state: string = 'todo') =>
-  ({ id, position, state } as any);
+  ({ id, position, state }) as any;
 
 describe('queue helpers', () => {
   it('normalizes queue positions with gaps', () => {
@@ -54,10 +54,7 @@ describe('queue helpers', () => {
 
   it('derives a visible window even when fewer tasks exist', () => {
     const tasks = deriveVisibleQueue(
-      [
-        buildQueueTask('a', 2),
-        buildQueueTask('b', 1, 'in_progress'),
-      ] as any,
+      [buildQueueTask('a', 2), buildQueueTask('b', 1, 'in_progress')] as any,
       QUEUE_WINDOW_SIZE
     );
 
@@ -68,9 +65,9 @@ describe('queue helpers', () => {
   });
 
   it('fills the window from lower priority rows after removals', () => {
-    const initialQueue = normalizeQueuePositions(
-      [...buildTasks(9).map((task) => buildQueueTask(task.id, task.position))] as any
-    );
+    const initialQueue = normalizeQueuePositions([
+      ...buildTasks(9).map((task) => buildQueueTask(task.id, task.position)),
+    ] as any);
 
     const afterDelete = reduceQueueChange(initialQueue as any, {
       eventType: 'DELETE',

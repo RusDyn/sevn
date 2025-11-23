@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Sevn Focus Queue",
+  "description": "Pin the Sevn focus queue with quick capture controls powered by Supabase.",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "Sevn Focus",
+    "default_popup": "index.html"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.supabase.co/*"],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png",
+    "256": "icon256.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icon.svg", "icon48.png", "icon128.png", "icon256.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

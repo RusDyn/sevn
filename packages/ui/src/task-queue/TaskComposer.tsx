@@ -19,10 +19,7 @@ export type TaskComposerProps = {
   analytics?: (event: TaskAnalyticsEvent) => void;
 };
 
-const logAnalytics = (
-  analytics: TaskComposerProps['analytics'],
-  event: TaskAnalyticsEvent
-) => {
+const logAnalytics = (analytics: TaskComposerProps['analytics'], event: TaskAnalyticsEvent) => {
   try {
     if (analytics) {
       analytics(event);
@@ -46,9 +43,12 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
   const [path, setPath] = useState<'add' | 'plan'>('add');
   const activeAdapter = useRef<SpeechAdapter | null>(null);
 
-  useEffect(() => () => {
-    void activeAdapter.current?.stop?.();
-  }, []);
+  useEffect(
+    () => () => {
+      void activeAdapter.current?.stop?.();
+    },
+    []
+  );
 
   const toggleSelection = (index: number) => {
     setSelected((current) => {
@@ -89,7 +89,9 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
       setError('Unable to start speech capture.');
       logAnalytics(analytics, {
         name: 'capture_failed',
-        properties: { message: captureError instanceof Error ? captureError.message : String(captureError) },
+        properties: {
+          message: captureError instanceof Error ? captureError.message : String(captureError),
+        },
       });
     } finally {
       setListening(false);
@@ -259,7 +261,9 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
           onPress={startTranscription}
           disabled={!speechAdapter?.supported || listening}
         >
-          <Text style={styles.micLabel}>{listening ? 'Listening…' : speechAdapter?.label ?? 'Record'}</Text>
+          <Text style={styles.micLabel}>
+            {listening ? 'Listening…' : (speechAdapter?.label ?? 'Record')}
+          </Text>
         </Pressable>
       </View>
       <View style={styles.actions}>
@@ -311,7 +315,9 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
               <View style={[styles.checkbox, selected.has(index) && styles.checkboxChecked]} />
               <View style={styles.checkCopy}>
                 <Text style={styles.checkTitle}>{draft.title}</Text>
-                {draft.description ? <Paragraph style={styles.checkDescription}>{draft.description}</Paragraph> : null}
+                {draft.description ? (
+                  <Paragraph style={styles.checkDescription}>{draft.description}</Paragraph>
+                ) : null}
               </View>
             </Pressable>
           ))}
@@ -326,8 +332,8 @@ export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: Task
         </View>
       ) : null}
       <Paragraph style={styles.footer}>
-        <Strong>Privacy note:</Strong> Speech capture happens locally when supported; browser users can always fall back to
-        keyboard input.
+        <Strong>Privacy note:</Strong> Speech capture happens locally when supported; browser users
+        can always fall back to keyboard input.
       </Paragraph>
     </View>
   );

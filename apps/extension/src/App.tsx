@@ -4,12 +4,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthGate } from './AuthGate';
 import { taskClient } from './taskClient';
+import { useSpeechAdapter } from './useSpeechAdapter';
 
 const logAnalytics = (event: TaskAnalyticsEvent) => {
   console.info('[extension-analytics]', event.name, event.properties ?? {});
 };
 
 function App() {
+  const speechAdapter = useSpeechAdapter();
+
   return (
     <View style={styles.page}>
       <View style={styles.header}>
@@ -23,7 +26,7 @@ function App() {
       <AuthGate client={taskClient}>
         {({ client, ownerId, signOut }) => (
           <>
-            <View style={[styles.card, styles.row]}> 
+            <View style={[styles.card, styles.row]}>
               <Paragraph style={styles.helper}>Signed in as {ownerId}</Paragraph>
               <Pressable accessibilityRole="button" onPress={signOut}>
                 <Paragraph style={styles.link}>Sign out</Paragraph>
@@ -33,7 +36,12 @@ function App() {
               <TaskQueueBoard client={client} ownerId={ownerId} />
             </View>
             <View style={styles.card}>
-              <TaskComposer client={client} ownerId={ownerId} analytics={logAnalytics} />
+              <TaskComposer
+                client={client}
+                ownerId={ownerId}
+                speechAdapter={speechAdapter}
+                analytics={logAnalytics}
+              />
             </View>
           </>
         )}

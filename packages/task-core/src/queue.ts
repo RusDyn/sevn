@@ -4,8 +4,8 @@ export type PositionedTask = Pick<TaskRow, 'id' | 'position'>;
 
 export type QueueChangePayload = {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new?: TaskRow | null;
-  old?: TaskRow | null;
+  new?: TaskRow | Partial<TaskRow> | Record<string, never> | null;
+  old?: TaskRow | Partial<TaskRow> | Record<string, never> | null;
 };
 
 export const QUEUE_WINDOW_SIZE = 7;
@@ -28,10 +28,10 @@ export const normalizeQueuePositions = <T extends PositionedTask>(tasks: T[]): T
   sortByPosition(tasks).map((task, index) => ({
     ...task,
     position: index + 1,
-  }));
+  } as T));
 
 export const reorderQueue = <T extends PositionedTask>(tasks: T[], move: QueueMove): T[] => {
-  const ordered = sortByPosition(tasks);
+  const ordered = sortByPosition(tasks) as T[];
   const currentIndex = ordered.findIndex((task) => task.id === move.taskId);
 
   if (currentIndex === -1) return normalizeQueuePositions(ordered);

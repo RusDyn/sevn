@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type RealtimePostgresChangesPayload, type Session } from '@supabase/supabase-js';
+
 import { createTaskClient, type TaskClient, type TaskClientConfig } from './client';
 import { resolveSupabaseConfig } from './config';
 import {
@@ -195,7 +196,11 @@ export const useRealtimeTaskQueue = (
       setError(queryError);
     } else {
       setError(null);
-      setQueue(normalizeQueuePositions((tasks ?? []).filter((task) => task.state !== 'done' && task.state !== 'archived')));
+      setQueue(
+        normalizeQueuePositions(
+          (tasks ?? []).filter((task) => task.state !== 'done' && task.state !== 'archived')
+        )
+      );
     }
 
     setLoading(false);
@@ -212,7 +217,12 @@ export const useRealtimeTaskQueue = (
       .channel(`public:tasks-queue:${ownerId ?? 'all'}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks', filter: ownerId ? `owner_id=eq.${ownerId}` : undefined },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: ownerId ? `owner_id=eq.${ownerId}` : undefined,
+        },
         (payload: QueueSubscriptionChange) => {
           setQueue((current) => reduceQueueChange(current, payload));
         }

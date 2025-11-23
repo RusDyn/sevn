@@ -57,10 +57,7 @@ describe('task decomposition helpers', () => {
   });
 
   it('drops drafts without a usable title', () => {
-    const drafts: TaskDraft[] = [
-      { title: '   ' },
-      { title: 'Keep me' },
-    ];
+    const drafts: TaskDraft[] = [{ title: '   ' }, { title: 'Keep me' }];
 
     const inserts = applyPositionsToDrafts([], drafts, 'owner-1');
 
