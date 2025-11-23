@@ -2,6 +2,7 @@
 apps/*/credentials.json
 apps/*/build
 packages/*/build
+apps/extension/sevn-extension.zip
 
 # Turborepo
 .turbo

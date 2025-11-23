@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && pnpm run package",
     "lint": "eslint --ext ts,tsx src",
     "preview": "vite preview",
+    "package": "rm -f dist/sevn-extension.zip && cd dist && zip -r ../sevn-extension.zip .",
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
