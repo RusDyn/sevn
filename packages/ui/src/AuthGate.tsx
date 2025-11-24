@@ -1,6 +1,6 @@
 import type { TaskClient } from '@sevn/task-core';
 import { useTaskSession } from '@sevn/task-core';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  useColorScheme,
   type ViewStyle,
 } from 'react-native';
 
@@ -15,6 +16,48 @@ import { Paragraph } from './Paragraph';
 import { Strong } from './Strong';
 
 type AuthView = 'sign-in' | 'sign-up' | 'forgot-password';
+
+type AuthGateTheme = {
+  background: string;
+  text: string;
+  muted: string;
+  border: string;
+  inputBackground: string;
+  button: string;
+  buttonText: string;
+  link: string;
+  error: string;
+  success: string;
+  placeholder: string;
+};
+
+const lightTheme = {
+  background: '#ffffff',
+  text: '#0f172a',
+  muted: '#475569',
+  border: '#cbd5e1',
+  inputBackground: '#ffffff',
+  button: '#0ea5e9',
+  buttonText: '#0b1221',
+  link: '#0ea5e9',
+  error: '#b91c1c',
+  success: '#15803d',
+  placeholder: '#94a3b8',
+};
+
+const darkTheme: AuthGateTheme = {
+  background: '#0b1221',
+  text: '#e5e7eb',
+  muted: '#94a3b8',
+  border: '#1f2937',
+  inputBackground: '#0f172a',
+  button: '#0ea5e9',
+  buttonText: '#0b1221',
+  link: '#38bdf8',
+  error: '#f87171',
+  success: '#34d399',
+  placeholder: '#94a3b8',
+};
 
 export type AuthGateProps = {
   client: TaskClient | null;
@@ -28,6 +71,9 @@ export type AuthGateProps = {
 };
 
 export const AuthGate = ({ client, children, style, missingClientHint }: AuthGateProps) => {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const {
     client: authedClient,
     ownerId,
@@ -87,6 +133,8 @@ export const AuthGate = ({ client, children, style, missingClientHint }: AuthGat
     return (
       <AuthPanels
         panelStyle={style}
+        styles={styles}
+        theme={theme}
         view={view}
         onChangeView={setView}
         onSignIn={signInWithEmail}
@@ -100,6 +148,8 @@ export const AuthGate = ({ client, children, style, missingClientHint }: AuthGat
 };
 
 const AuthPanels = ({
+  styles,
+  theme,
   view,
   onChangeView,
   onSignIn,
@@ -107,6 +157,8 @@ const AuthPanels = ({
   onResetPassword,
   panelStyle,
 }: {
+  styles: AuthGateStyles;
+  theme: AuthGateTheme;
   view: AuthView;
   onChangeView: (next: AuthView) => void;
   onSignIn: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
@@ -118,6 +170,8 @@ const AuthPanels = ({
     {view === 'sign-in' ? (
       <SignInPanel
         panelStyle={panelStyle}
+        styles={styles}
+        theme={theme}
         onSubmit={onSignIn}
         onShowSignUp={() => onChangeView('sign-up')}
         onShowForgot={() => onChangeView('forgot-password')}
@@ -126,6 +180,8 @@ const AuthPanels = ({
     {view === 'sign-up' ? (
       <SignUpPanel
         panelStyle={panelStyle}
+        styles={styles}
+        theme={theme}
         onSubmit={onSignUp}
         onShowSignIn={() => onChangeView('sign-in')}
       />
@@ -133,6 +189,8 @@ const AuthPanels = ({
     {view === 'forgot-password' ? (
       <ForgotPasswordPanel
         panelStyle={panelStyle}
+        styles={styles}
+        theme={theme}
         onSubmit={onResetPassword}
         onShowSignIn={() => onChangeView('sign-in')}
       />
@@ -141,11 +199,15 @@ const AuthPanels = ({
 );
 
 const SignInPanel = ({
+  styles,
+  theme,
   onSubmit,
   onShowSignUp,
   onShowForgot,
   panelStyle,
 }: {
+  styles: AuthGateStyles;
+  theme: AuthGateTheme;
   onSubmit: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
   onShowSignUp: () => void;
   onShowForgot: () => void;
@@ -183,7 +245,7 @@ const SignInPanel = ({
           autoCapitalize="none"
           keyboardType="email-address"
           placeholder="you@example.com"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
         />
       </View>
@@ -195,7 +257,7 @@ const SignInPanel = ({
           autoCapitalize="none"
           secureTextEntry
           placeholder="••••••••"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
         />
       </View>
@@ -221,10 +283,14 @@ const SignInPanel = ({
 };
 
 const SignUpPanel = ({
+  styles,
+  theme,
   onSubmit,
   onShowSignIn,
   panelStyle,
 }: {
+  styles: AuthGateStyles;
+  theme: AuthGateTheme;
   onSubmit: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
   onShowSignIn: () => void;
   panelStyle?: StyleProp<ViewStyle>;
@@ -265,7 +331,7 @@ const SignUpPanel = ({
           autoCapitalize="none"
           keyboardType="email-address"
           placeholder="you@example.com"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
         />
       </View>
@@ -277,7 +343,7 @@ const SignUpPanel = ({
           autoCapitalize="none"
           secureTextEntry
           placeholder="••••••••"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
         />
       </View>
@@ -289,7 +355,7 @@ const SignUpPanel = ({
           autoCapitalize="none"
           secureTextEntry
           placeholder="••••••••"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
         />
       </View>
@@ -315,10 +381,14 @@ const SignUpPanel = ({
 };
 
 const ForgotPasswordPanel = ({
+  styles,
+  theme,
   onSubmit,
   onShowSignIn,
   panelStyle,
 }: {
+  styles: AuthGateStyles;
+  theme: AuthGateTheme;
   onSubmit: (email: string) => Promise<{ error: { message?: string } | null }>;
   onShowSignIn: () => void;
   panelStyle?: StyleProp<ViewStyle>;
@@ -362,7 +432,7 @@ const ForgotPasswordPanel = ({
           autoCapitalize="none"
           keyboardType="email-address"
           placeholder="you@example.com"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={theme.placeholder}
           style={styles.input}
         />
       </View>
@@ -385,57 +455,62 @@ const ForgotPasswordPanel = ({
   );
 };
 
-const styles = StyleSheet.create({
-  panel: {
-    gap: 12,
-    width: '100%',
-  },
-  helper: {
-    color: '#e5e7eb',
-  },
-  heading: {
-    color: '#e5e7eb',
-  },
-  fieldRow: {
-    gap: 6,
-  },
-  label: {
-    color: '#e5e7eb',
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#1f2937',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#e5e7eb',
-  },
-  button: {
-    backgroundColor: '#0ea5e9',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#0b1221',
-    fontWeight: '700',
-  },
-  error: {
-    color: '#f87171',
-  },
-  success: {
-    color: '#34d399',
-  },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  link: {
-    color: '#38bdf8',
-    fontWeight: '700',
-  },
-});
+const createStyles = (theme: AuthGateTheme) =>
+  StyleSheet.create({
+    panel: {
+      gap: 12,
+      width: '100%',
+      backgroundColor: theme.background,
+    },
+    helper: {
+      color: theme.muted,
+    },
+    heading: {
+      color: theme.text,
+    },
+    fieldRow: {
+      gap: 6,
+    },
+    label: {
+      color: theme.text,
+      fontWeight: '600',
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: theme.text,
+      backgroundColor: theme.inputBackground,
+    },
+    button: {
+      backgroundColor: theme.button,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    buttonDisabled: {
+      opacity: 0.6,
+    },
+    buttonText: {
+      color: theme.buttonText,
+      fontWeight: '700',
+    },
+    error: {
+      color: theme.error,
+    },
+    success: {
+      color: theme.success,
+    },
+    linkRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    link: {
+      color: theme.link,
+      fontWeight: '700',
+    },
+  });
+
+type AuthGateStyles = ReturnType<typeof createStyles>;
