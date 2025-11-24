@@ -1,10 +1,9 @@
 import { SevnFocusScreen } from '@sevn/feature-home';
-import { TaskComposer } from '@sevn/ui';
+import { AuthGate, TaskComposer } from '@sevn/ui';
 import type { TaskAnalyticsEvent } from '@sevn/task-core';
 import { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import { AuthGate } from '@/components/auth-gate';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTaskClient } from '@/hooks/useTaskClient';
@@ -19,7 +18,11 @@ export default function HomeScreen() {
   );
 
   return (
-    <AuthGate client={client}>
+    <AuthGate
+      client={client}
+      style={styles.authPanel}
+      missingClientHint="Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to sign in."
+    >
       {({ ownerId, signOut, client: authedClient }) => (
         <ThemedView style={styles.screen}>
           <ScrollView
@@ -74,5 +77,9 @@ const styles = StyleSheet.create({
     borderColor: '#0f172a',
     padding: 12,
     backgroundColor: '#0b1021',
+  },
+  authPanel: {
+    flex: 1,
+    padding: 16,
   },
 });

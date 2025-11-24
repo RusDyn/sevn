@@ -1,7 +1,6 @@
+import { AuthGate } from '@sevn/ui';
 import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
-
-import { AuthGate } from '@/components/auth-gate';
 import { ExternalLink } from '@/components/external-link';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -15,7 +14,11 @@ export default function TabTwoScreen() {
   const client = useTaskClient();
 
   return (
-    <AuthGate client={client}>
+    <AuthGate
+      client={client}
+      style={styles.authPanel}
+      missingClientHint="Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to sign in."
+    >
       {({ signOut }) => (
         <ParallaxScrollView
           headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
@@ -131,5 +134,8 @@ const styles = StyleSheet.create({
   signOutRow: {
     gap: 4,
     marginTop: 12,
+  },
+  authPanel: {
+    padding: 16,
   },
 });
