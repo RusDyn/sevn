@@ -1,5 +1,9 @@
-// @ts-ignore - process may not be defined in all environments
-const env = typeof process !== 'undefined' ? process.env ?? {} : {};
+const env = (() => {
+  if (typeof process !== 'undefined' && process?.env) return process.env;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) return (import.meta as any).env;
+  return {};
+})();
 
 const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL ?? env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? env.VITE_SUPABASE_ANON_KEY;
