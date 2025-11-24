@@ -3,9 +3,14 @@ apps/*/credentials.json
 apps/*/build
 packages/*/build
 apps/extension/sevn-extension.zip
+.env
+.env.local
+.env.*
+
 
 # Turborepo
 .turbo
+packages/task-core/coverage
 
 # Expo
 .expo

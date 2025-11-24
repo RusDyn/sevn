@@ -1,6 +1,15 @@
 -- Ensure active queue ordering remains stable and efficient
-alter table if exists public.tasks
-  add constraint if not exists tasks_position_positive check (position > 0);
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.table_constraints
+    where constraint_name = 'tasks_position_positive'
+    and table_schema = 'public'
+    and table_name = 'tasks'
+  ) then
+    alter table public.tasks add constraint tasks_position_positive check (position > 0);
+  end if;
+end $$;
 
 create index if not exists tasks_owner_state_position_idx
   on public.tasks (owner_id, state, position);
@@ -9,7 +18,6 @@ create index if not exists tasks_owner_state_position_idx
 create or replace function public.resequence_active_tasks(p_owner uuid)
 returns setof public.tasks
 language sql
-security definer
 set search_path = public
 as $$
   with ordered as (
@@ -48,7 +56,6 @@ create unique index if not exists tasks_owner_active_position_idx
 create or replace function public.reorder_task_queue(p_task_id uuid, p_owner uuid, p_to_index int)
 returns setof public.tasks
 language sql
-security definer
 set search_path = public
 as $$
   with active as (
@@ -98,7 +105,6 @@ $$;
 create or replace function public.complete_task_and_resequence(p_task_id uuid, p_owner uuid)
 returns setof public.tasks
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
@@ -115,7 +121,6 @@ $$;
 create or replace function public.delete_task_and_resequence(p_task_id uuid, p_owner uuid)
 returns setof public.tasks
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
@@ -130,7 +135,6 @@ $$;
 create or replace function public.deprioritize_task_to_bottom(p_task_id uuid, p_owner uuid)
 returns setof public.tasks
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
