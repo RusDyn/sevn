@@ -42,6 +42,11 @@ export const createTaskClient = ({
   const signInWithOAuth = (provider: Provider, redirectTo?: string) =>
     client.auth.signInWithOAuth({ provider, options: redirectTo ? { redirectTo } : undefined });
 
+  const signUpWithEmail = (email: string, password: string) =>
+    client.auth.signUp({ email, password });
+
+  const resetPasswordForEmail = (email: string) => client.auth.resetPasswordForEmail(email);
+
   const signOut = () => client.auth.signOut();
 
   const listTasks = async (ownerId?: string, sort: TaskSortKey = 'position') => {
@@ -273,6 +278,8 @@ export const createTaskClient = ({
     auth: {
       signInWithEmail,
       signInWithOAuth,
+      signUpWithEmail,
+      resetPasswordForEmail,
       signOut,
     },
     tasks: {

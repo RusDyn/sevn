@@ -1,5 +1,11 @@
 const env = (() => {
-  if (typeof process !== 'undefined' && process?.env) return process.env;
+  const maybeProcessEnv =
+    typeof globalThis === 'object'
+      ? (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+      : undefined;
+
+  if (maybeProcessEnv) return maybeProcessEnv;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof import.meta !== 'undefined' && (import.meta as any).env) return (import.meta as any).env;
   return {};

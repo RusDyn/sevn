@@ -54,7 +54,12 @@ const createMockClient = (initialQueue: TaskRow[]): TaskClient => {
       channel: () => ({ on: () => ({ subscribe: () => ({ subscription: { unsubscribe: jest.fn() } }) }) }),
       removeChannel: jest.fn(),
     },
-    auth: { signInWithEmail: jest.fn(), signOut: jest.fn() },
+    auth: {
+      signInWithEmail: jest.fn(),
+      signUpWithEmail: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
+      signOut: jest.fn(),
+    },
   } as unknown as TaskClient;
 };
 
