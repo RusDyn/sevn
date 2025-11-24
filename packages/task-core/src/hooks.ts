@@ -35,6 +35,8 @@ export type TaskSession = {
   loading: boolean;
   invalidSession: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: { message?: string } | null }>;
   signOut: () => Promise<{ error: { message?: string } | null }>;
 };
 
@@ -101,6 +103,26 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
     [client],
   );
 
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string) => {
+      if (!client) return { error: new Error('No client configured') } as const;
+
+      const { error } = await client.auth.signUpWithEmail(email, password);
+      return { error } as const;
+    },
+    [client],
+  );
+
+  const resetPasswordForEmail = useCallback(
+    async (email: string) => {
+      if (!client) return { error: new Error('No client configured') } as const;
+
+      const { error } = await client.auth.resetPasswordForEmail(email);
+      return { error } as const;
+    },
+    [client],
+  );
+
   const signOut = useCallback(async () => {
     if (!client) return { error: new Error('No client configured') } as const;
 
@@ -116,6 +138,8 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
     loading,
     invalidSession: status === 'invalid-session',
     signInWithEmail,
+    signUpWithEmail,
+    resetPasswordForEmail,
     signOut,
   };
 };

@@ -20,6 +20,9 @@
     "react-native-web": "~0.21.1"
   },
   "devDependencies": {
+    "@babel/plugin-transform-flow-strip-types": "^7.27.1",
+    "@babel/plugin-transform-react-jsx": "^7.27.1",
+    "@rollup/plugin-babel": "^6.1.0",
     "@sevn/eslint-config": "workspace:*",
     "@types/react": "~19.1.12",
     "@types/react-dom": "~19.1.5",

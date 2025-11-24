@@ -37,6 +37,8 @@ beforeEach(() => {
     loading: false,
     invalidSession: false,
     signInWithEmail: jest.fn(),
+    signUpWithEmail: jest.fn(),
+    resetPasswordForEmail: jest.fn(),
     signOut: jest.fn(),
   });
 });
