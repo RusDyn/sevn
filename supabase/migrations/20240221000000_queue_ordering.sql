@@ -18,7 +18,6 @@ create index if not exists tasks_owner_state_position_idx
 create or replace function public.resequence_active_tasks(p_owner uuid)
 returns setof public.tasks
 language sql
-security definer
 set search_path = public
 as $$
   with ordered as (
@@ -57,7 +56,6 @@ create unique index if not exists tasks_owner_active_position_idx
 create or replace function public.reorder_task_queue(p_task_id uuid, p_owner uuid, p_to_index int)
 returns setof public.tasks
 language sql
-security definer
 set search_path = public
 as $$
   with active as (
@@ -107,7 +105,6 @@ $$;
 create or replace function public.complete_task_and_resequence(p_task_id uuid, p_owner uuid)
 returns setof public.tasks
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
@@ -124,7 +121,6 @@ $$;
 create or replace function public.delete_task_and_resequence(p_task_id uuid, p_owner uuid)
 returns setof public.tasks
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
@@ -139,7 +135,6 @@ $$;
 create or replace function public.deprioritize_task_to_bottom(p_task_id uuid, p_owner uuid)
 returns setof public.tasks
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
