@@ -3,12 +3,12 @@
   "name": "@sevn/monorepo",
   "scripts": {
     "dev": "turbo dev",
-    "dev:sevn": "turbo dev --filter=\"{./apps/sevn}...\"",
+    "dev:mobile": "turbo dev --filter=\"{./apps/mobile}...\"",
     "dev:extension": "turbo dev --filter=\"{./apps/extension}...\"",
     "lint": "turbo lint",
     "test": "turbo test",
     "build": "turbo build",
-    "build:sevn": "turbo build --filter=\"...{./apps/sevn}\"",
+    "build:mobile": "turbo build --filter=\"...{./apps/mobile}\"",
     "build:extension": "turbo build --filter=\"...{./apps/extension}\""
   },
   "devDependencies": {

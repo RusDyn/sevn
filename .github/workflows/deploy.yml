@@ -35,19 +35,19 @@ jobs:
         with:
           expo-token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: ✅ Build apps/sevn
-        run: pnpm run -w build:sevn
+      - name: ✅ Build apps/mobile
+        run: pnpm run -w build:mobile
 
-      - name: 🌐 Export apps/sevn for web
-        working-directory: apps/sevn
+      - name: 🌐 Export apps/mobile for web
+        working-directory: apps/mobile
         run: pnpm expo export --platform web --output-dir ./build
 
-      - name: 🚀 Deploy apps/sevn preview
+      - name: 🚀 Deploy apps/mobile preview
         if: ${{ github.event_name == 'pull_request' || github.event.inputs.target == 'preview' }}
-        working-directory: apps/sevn
+        working-directory: apps/mobile
         run: eas deploy --export-dir ./build
 
-      - name: 🚀 Deploy apps/sevn production
+      - name: 🚀 Deploy apps/mobile production
         if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || github.event.inputs.target == 'production' }}
-        working-directory: apps/sevn
+        working-directory: apps/mobile
         run: eas deploy --export-dir ./build --production
