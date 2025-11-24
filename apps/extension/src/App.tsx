@@ -1,8 +1,7 @@
 import type { TaskAnalyticsEvent } from '@sevn/task-core';
-import { Paragraph, Strong, TaskComposer, TaskQueueBoard } from '@sevn/ui';
+import { AuthGate, Paragraph, Strong, TaskComposer, TaskQueueBoard } from '@sevn/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AuthGate } from './AuthGate';
 import { taskClient } from './taskClient';
 import { useSpeechAdapter } from './useSpeechAdapter';
 
@@ -23,7 +22,7 @@ function App() {
           Manage tasks with swipes or the toolbar buttons beneath each card.
         </Paragraph>
       </View>
-      <AuthGate client={taskClient}>
+      <AuthGate client={taskClient} missingClientHint="Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sign in.">
         {({ client, ownerId, signOut }) => (
           <>
             <View style={[styles.card, styles.row]}>

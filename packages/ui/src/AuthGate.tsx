@@ -1,8 +1,18 @@
 import type { TaskClient } from '@sevn/task-core';
 import { useTaskSession } from '@sevn/task-core';
-import { Paragraph, Strong } from '@sevn/ui';
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  TextInput,
+  View,
+  type ViewStyle,
+} from 'react-native';
+
+import { Paragraph } from './Paragraph';
+import { Strong } from './Strong';
 
 type AuthView = 'sign-in' | 'sign-up' | 'forgot-password';
 
@@ -13,9 +23,11 @@ export type AuthGateProps = {
     client: TaskClient;
     signOut: () => Promise<void>;
   }) => ReactNode;
+  style?: StyleProp<ViewStyle>;
+  missingClientHint?: string;
 };
 
-export const AuthGate = ({ client, children }: AuthGateProps) => {
+export const AuthGate = ({ client, children, style, missingClientHint }: AuthGateProps) => {
   const {
     client: authedClient,
     ownerId,
@@ -35,12 +47,12 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
 
   if (status === 'missing-client') {
     return (
-      <View style={styles.panel}>
+      <View style={[styles.panel, style]}>
         <Paragraph style={styles.heading}>
           <Strong>Connect to Supabase</Strong>
         </Paragraph>
         <Paragraph style={styles.helper}>
-          Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sign in.
+          {missingClientHint ?? 'Set your Supabase URL and anon key to sign in.'}
         </Paragraph>
       </View>
     );
@@ -48,7 +60,7 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
 
   if (loading) {
     return (
-      <View style={styles.panel}>
+      <View style={[styles.panel, style]}>
         <ActivityIndicator />
         <Paragraph style={styles.helper}>Restoring your session…</Paragraph>
       </View>
@@ -57,7 +69,7 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
 
   if (invalidSession) {
     return (
-      <View style={styles.panel}>
+      <View style={[styles.panel, style]}>
         <Paragraph style={styles.heading}>
           <Strong>Session needs attention</Strong>
         </Paragraph>
@@ -74,6 +86,7 @@ export const AuthGate = ({ client, children }: AuthGateProps) => {
   if (!ownerId || !authedClient) {
     return (
       <AuthPanels
+        panelStyle={style}
         view={view}
         onChangeView={setView}
         onSignIn={signInWithEmail}
@@ -92,26 +105,34 @@ const AuthPanels = ({
   onSignIn,
   onSignUp,
   onResetPassword,
+  panelStyle,
 }: {
   view: AuthView;
   onChangeView: (next: AuthView) => void;
   onSignIn: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
   onSignUp: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
   onResetPassword: (email: string) => Promise<{ error: { message?: string } | null }>;
+  panelStyle?: StyleProp<ViewStyle>;
 }) => (
   <>
     {view === 'sign-in' ? (
       <SignInPanel
+        panelStyle={panelStyle}
         onSubmit={onSignIn}
         onShowSignUp={() => onChangeView('sign-up')}
         onShowForgot={() => onChangeView('forgot-password')}
       />
     ) : null}
     {view === 'sign-up' ? (
-      <SignUpPanel onSubmit={onSignUp} onShowSignIn={() => onChangeView('sign-in')} />
+      <SignUpPanel
+        panelStyle={panelStyle}
+        onSubmit={onSignUp}
+        onShowSignIn={() => onChangeView('sign-in')}
+      />
     ) : null}
     {view === 'forgot-password' ? (
       <ForgotPasswordPanel
+        panelStyle={panelStyle}
         onSubmit={onResetPassword}
         onShowSignIn={() => onChangeView('sign-in')}
       />
@@ -123,10 +144,12 @@ const SignInPanel = ({
   onSubmit,
   onShowSignUp,
   onShowForgot,
+  panelStyle,
 }: {
   onSubmit: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
   onShowSignUp: () => void;
   onShowForgot: () => void;
+  panelStyle?: StyleProp<ViewStyle>;
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -146,7 +169,7 @@ const SignInPanel = ({
   };
 
   return (
-    <View style={styles.panel}>
+    <View style={[styles.panel, panelStyle]}>
       <Paragraph style={styles.heading}>
         <Strong>Sign in</Strong>
       </Paragraph>
@@ -200,9 +223,11 @@ const SignInPanel = ({
 const SignUpPanel = ({
   onSubmit,
   onShowSignIn,
+  panelStyle,
 }: {
   onSubmit: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
   onShowSignIn: () => void;
+  panelStyle?: StyleProp<ViewStyle>;
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -224,7 +249,7 @@ const SignUpPanel = ({
   };
 
   return (
-    <View style={styles.panel}>
+    <View style={[styles.panel, panelStyle]}>
       <Paragraph style={styles.heading}>
         <Strong>Sign up</Strong>
       </Paragraph>
@@ -292,9 +317,11 @@ const SignUpPanel = ({
 const ForgotPasswordPanel = ({
   onSubmit,
   onShowSignIn,
+  panelStyle,
 }: {
   onSubmit: (email: string) => Promise<{ error: { message?: string } | null }>;
   onShowSignIn: () => void;
+  panelStyle?: StyleProp<ViewStyle>;
 }) => {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -319,7 +346,7 @@ const ForgotPasswordPanel = ({
   };
 
   return (
-    <View style={styles.panel}>
+    <View style={[styles.panel, panelStyle]}>
       <Paragraph style={styles.heading}>
         <Strong>Reset password</Strong>
       </Paragraph>
@@ -361,6 +388,7 @@ const ForgotPasswordPanel = ({
 const styles = StyleSheet.create({
   panel: {
     gap: 12,
+    width: '100%',
   },
   helper: {
     color: '#e5e7eb',
