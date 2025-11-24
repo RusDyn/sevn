@@ -38,14 +38,14 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 👷 Build packages for Sevn
-        run: pnpm run -w build:sevn
+        run: pnpm run -w build:mobile
 
       - name: 🚀 Build Sevn
         if: ${{ github.event.inputs.submit != 'true' || github.event.inputs.profile != 'production' }}
-        working-directory: apps/sevn
+        working-directory: apps/mobile
         run: eas build --non-interactive --wait --platform=${{ github.event.inputs.platform }} --profile=${{ github.event.inputs.profile }}
 
       - name: 🚀 Build & submit Sevn
         if: ${{ github.event.inputs.submit == 'true' && github.event.inputs.profile == 'production' }}
-        working-directory: apps/sevn
+        working-directory: apps/mobile
         run: eas build --non-interactive --wait --auto-submit --platform=${{ github.event.inputs.platform }} --profile=${{ github.event.inputs.profile }}

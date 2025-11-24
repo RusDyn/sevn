@@ -40,7 +40,11 @@ export const reorderQueue = <T extends PositionedTask>(tasks: T[], move: QueueMo
   const destination = clampIndex(move.toIndex, ordered.length);
   ordered.splice(destination, 0, removed);
 
-  return normalizeQueuePositions(ordered);
+  // Renumber positions WITHOUT re-sorting (splice already set the order)
+  return ordered.map((task, index) => ({
+    ...task,
+    position: index + 1,
+  } as T));
 };
 
 export const buildPositionUpdates = (
@@ -70,11 +74,24 @@ export const reduceQueueChange = (tasks: TaskRow[], payload: QueueChangePayload)
       return normalizeQueuePositions(tasks.filter((task) => task.id !== updated.id));
     }
 
-    const nextTasks = tasks.some((task) => task.id === updated.id)
-      ? tasks.map((task) => (task.id === updated.id ? updated : task))
-      : [...tasks, updated];
+    const existing = tasks.find((task) => task.id === updated.id);
 
-    return normalizeQueuePositions(nextTasks);
+    // Task doesn't exist yet, add it
+    if (!existing) {
+      return normalizeQueuePositions([...tasks, updated]);
+    }
+
+    // Update task data (all fields including position)
+    const tasksWithUpdatedData = tasks.map((task) => (task.id === updated.id ? updated : task));
+
+    // If position changed, treat as a reorder operation
+    if (existing.position !== updated.position) {
+      const targetIndex = updated.position - 1; // Convert 1-based position to 0-based index
+      return reorderQueue(tasksWithUpdatedData, { taskId: updated.id, toIndex: targetIndex });
+    }
+
+    // Position unchanged, just normalize
+    return normalizeQueuePositions(tasksWithUpdatedData);
   }
 
   if (payload.eventType === 'DELETE') {
