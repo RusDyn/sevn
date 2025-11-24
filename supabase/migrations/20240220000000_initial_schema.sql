@@ -31,6 +31,10 @@ create table if not exists public.tasks (
   owner_id uuid not null references auth.users(id) on delete cascade
 );
 
+-- Enable realtime replication for tasks
+alter table public.tasks replica identity full;
+alter publication supabase_realtime add table public.tasks;
+
 -- Enable Row Level Security
 alter table public.tasks enable row level security;
 
