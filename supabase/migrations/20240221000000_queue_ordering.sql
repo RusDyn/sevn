@@ -1,6 +1,15 @@
 -- Ensure active queue ordering remains stable and efficient
-alter table if exists public.tasks
-  add constraint if not exists tasks_position_positive check (position > 0);
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.table_constraints
+    where constraint_name = 'tasks_position_positive'
+    and table_schema = 'public'
+    and table_name = 'tasks'
+  ) then
+    alter table public.tasks add constraint tasks_position_positive check (position > 0);
+  end if;
+end $$;
 
 create index if not exists tasks_owner_state_position_idx
   on public.tasks (owner_id, state, position);

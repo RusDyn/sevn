@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react-hooks';
 
-import type { TaskClient, TaskRow } from '../types';
+import type { TaskClient } from '../client';
+import type { TaskRow } from '../types';
 import { useRealtimeTaskQueue } from '../hooks';
 
 const createQueue = (overrides: Partial<TaskRow>[] = []): TaskRow[] =>

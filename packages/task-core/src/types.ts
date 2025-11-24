@@ -1,49 +1,19 @@
-export type TaskState = 'backlog' | 'todo' | 'in_progress' | 'blocked' | 'done' | 'archived';
+import type { Database as GeneratedDatabase, Tables, TablesInsert, TablesUpdate, Enums } from './database.types';
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+// Re-export the generated Database type
+export type Database = GeneratedDatabase;
 
-export type TaskRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  state: TaskState;
-  priority: TaskPriority;
-  position: number;
-  due_at: string | null;
-  created_at: string;
-  updated_at: string;
-  owner_id: string;
-};
-
-export type TaskInsert = Pick<TaskRow, 'title' | 'state' | 'priority' | 'owner_id'> &
-  Partial<Pick<TaskRow, 'description' | 'position' | 'due_at'>>;
-
-export type TaskUpdate = Partial<Omit<TaskRow, 'id' | 'owner_id'>>;
+// Type aliases for easier consumption
+export type TaskRow = Tables<'tasks'>;
+export type TaskInsert = TablesInsert<'tasks'>;
+export type TaskUpdate = TablesUpdate<'tasks'>;
+export type TaskState = Enums<'task_state'>;
+export type TaskPriority = Enums<'task_priority'>;
 
 export type TaskTable = {
   Row: TaskRow;
   Insert: TaskInsert;
   Update: TaskUpdate;
-};
-
-export type Database = {
-  public: {
-    Tables: {
-      tasks: TaskTable;
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      [_ in never]: never;
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
 };
 
 export type TaskSortKey = 'position' | 'created_at' | 'priority';
