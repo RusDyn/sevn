@@ -86,15 +86,16 @@ serve(async (req) => {
   });
 
   const authHeader = req.headers.get('Authorization');
-  let user = null;
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+  }
 
-  if (authHeader) {
-    const result = await supabase.auth.getUser();
-    user = result.data.user;
+  const authResult = await supabase.auth.getUser();
+  const user = authResult.data.user;
 
-    if (result.error) {
-      console.warn('transcribe-voice auth lookup failed', { error: result.error.message });
-    }
+  if (authResult.error || !user) {
+    console.warn('transcribe-voice auth lookup failed', { error: authResult.error?.message });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
   }
 
   const apiKey = Deno.env.get('OPENAI_API_KEY');
