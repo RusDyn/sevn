@@ -141,10 +141,15 @@ export const createTaskClient = ({
       formData.append('language', language);
     }
 
+    const { data: sessionData } = await client.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    const authToken = accessToken ?? supabaseKey;
+
     const response = await fetch(`${supabaseUrl}/functions/v1/transcribe-voice`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${supabaseKey}`,
+        apikey: supabaseKey,
+        Authorization: `Bearer ${authToken}`,
       },
       body: formData,
     });
