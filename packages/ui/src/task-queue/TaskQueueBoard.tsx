@@ -51,7 +51,6 @@ export const TaskQueueBoard = ({
         {visibleTasks.map((task) => (
           <View key={task.id} style={styles.slot}>
             <TaskCard
-              position={task.position}
               task={task}
               onComplete={onComplete}
               onDelete={onDelete}
