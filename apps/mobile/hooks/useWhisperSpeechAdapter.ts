@@ -16,6 +16,27 @@ type StreamingState = {
   transcriptBuffer: string;
 };
 
+const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+const encodeBase64 = (bytes: Uint8Array): string => {
+  let result = '';
+
+  for (let i = 0; i < bytes.length; i += 3) {
+    const byte1 = bytes[i];
+    const byte2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const byte3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+
+    const combined = (byte1 << 16) | (byte2 << 8) | byte3;
+
+    result += BASE64_CHARS[(combined >> 18) & 0x3f];
+    result += BASE64_CHARS[(combined >> 12) & 0x3f];
+    result += i + 1 < bytes.length ? BASE64_CHARS[(combined >> 6) & 0x3f] : '=';
+    result += i + 2 < bytes.length ? BASE64_CHARS[combined & 0x3f] : '=';
+  }
+
+  return result;
+};
+
 // Convert Float32Array to 16-bit PCM and base64
 const float32ToPcm16Base64 = (float32Array: Float32Array): string => {
   const pcm16 = new Int16Array(float32Array.length);
@@ -24,13 +45,21 @@ const float32ToPcm16Base64 = (float32Array: Float32Array): string => {
     pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
   const bytes = new Uint8Array(pcm16.buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+
+  // Prefer native encoders when available, otherwise fall back to a portable implementation
+  if (typeof btoa !== 'undefined') {
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
   }
-  return typeof btoa !== 'undefined'
-    ? btoa(binary)
-    : Buffer.from(binary, 'binary').toString('base64');
+
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes).toString('base64');
+  }
+
+  return encodeBase64(bytes);
 };
 
 // Resample audio from source rate to 24kHz
