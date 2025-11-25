@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { AudioContext } from 'react-native-audio-api';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import { Buffer } from 'buffer';
 
 import type { SpeechAdapter, SpeechState } from '@sevn/ui';
 
