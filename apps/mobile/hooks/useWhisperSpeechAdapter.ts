@@ -305,20 +305,43 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
         await recording.stopAndUnloadAsync();
         const uri = recording.getURI();
         if (uri) {
-          const base64Wav = await FileSystem.readAsStringAsync(uri, {
+          const base64Recording = await FileSystem.readAsStringAsync(uri, {
             encoding: FileSystem.EncodingType.Base64,
           });
-          const wavBytes = Buffer.from(base64Wav, 'base64');
+          const recordingBytes = Buffer.from(base64Recording, 'base64');
 
-          // Strip WAV header if present (first 44 bytes)
-          const pcmBytes = wavBytes.byteLength > 44 ? wavBytes.slice(44) : wavBytes;
+          if (Platform.OS === 'android') {
+            // Android recordings are encoded as WEBM/OPUS, so decode to PCM before sending
+            const AC = AudioContext;
+            const nativeAudioContext = new AC({ sampleRate: 24000 });
+            const audioData = recordingBytes.buffer.slice(
+              recordingBytes.byteOffset,
+              recordingBytes.byteOffset + recordingBytes.byteLength
+            );
 
-          ws.send(
-            JSON.stringify({
-              type: 'input_audio_buffer.append',
-              audio: Buffer.from(pcmBytes).toString('base64'),
-            })
-          );
+            const audioBuffer = await nativeAudioContext.decodeAudioData(audioData);
+            const pcm = resample(audioBuffer.getChannelData(0), audioBuffer.sampleRate, 24000);
+
+            ws.send(
+              JSON.stringify({
+                type: 'input_audio_buffer.append',
+                audio: float32ToPcm16Base64(pcm),
+              })
+            );
+            await nativeAudioContext.close();
+          } else {
+            // iOS recordings are LINEAR PCM WAV; drop the header and forward raw PCM bytes
+            const pcmBytes =
+              recordingBytes.byteLength > 44 ? recordingBytes.slice(44) : recordingBytes;
+
+            ws.send(
+              JSON.stringify({
+                type: 'input_audio_buffer.append',
+                audio: Buffer.from(pcmBytes).toString('base64'),
+              })
+            );
+          }
+
           ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
 
           await new Promise((resolve) => setTimeout(resolve, 500));
