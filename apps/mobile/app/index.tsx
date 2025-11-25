@@ -7,7 +7,7 @@ import {
   useRealtimeTaskQueue,
 } from '@sevn/task-core';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ThemedView } from '@/components/themed-view';
 import { useTaskClient } from '@/hooks/useTaskClient';
@@ -79,24 +79,17 @@ function AuthenticatedContent({
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
-      >
-        <SevnFocusScreen
-          style={styles.focusCard}
-          ownerId={ownerId}
-          client={client}
-          tasks={tasks}
-          userEmail={userEmail ?? undefined}
-          onSignOut={onSignOut}
-          onComplete={completeTask}
-          onDelete={deleteTask}
-          onDeprioritize={deprioritizeTask}
-          onPressTask={handlePressTask}
-        />
-      </ScrollView>
+      <SevnFocusScreen
+        ownerId={ownerId}
+        client={client}
+        tasks={tasks}
+        userEmail={userEmail ?? undefined}
+        onSignOut={onSignOut}
+        onComplete={completeTask}
+        onDelete={deleteTask}
+        onDeprioritize={deprioritizeTask}
+        onPressTask={handlePressTask}
+      />
 
       <TaskComposer
         client={client}
@@ -161,19 +154,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-  },
-  content: {
-    gap: 16,
-    padding: 16,
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  focusCard: {
-    alignItems: 'flex-start',
-    gap: 12,
   },
   authPanel: {
     flex: 1,

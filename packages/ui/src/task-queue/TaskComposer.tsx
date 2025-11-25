@@ -239,9 +239,13 @@ export const TaskComposer = ({
 
   return (
     <>
-      <Pressable style={styles.fab} onPress={() => setIsOpen(true)}>
-        <Text style={styles.fabIcon}>+</Text>
-      </Pressable>
+      <View style={styles.fabContainer}>
+        <View style={styles.fabInner}>
+          <Pressable style={styles.fab} onPress={() => setIsOpen(true)}>
+            <Text style={styles.fabIcon}>+</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <Modal visible={isOpen} animationType="slide" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
@@ -426,10 +430,22 @@ export const TaskComposer = ({
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    fab: {
+    fabContainer: {
       position: 'absolute',
       bottom: 24,
-      right: 24,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      pointerEvents: 'box-none',
+    },
+    fabInner: {
+      width: '100%',
+      maxWidth: 1024,
+      alignItems: 'flex-end',
+      paddingHorizontal: 24,
+      pointerEvents: 'box-none',
+    },
+    fab: {
       width: 56,
       height: 56,
       borderRadius: 28,

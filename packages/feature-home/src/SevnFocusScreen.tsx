@@ -116,15 +116,18 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 8,
       padding: 16,
+      paddingBottom: 96,
     },
     title: {
       fontSize: 28,
       fontWeight: '700',
       textAlign: 'center',
+      width: '100%',
     },
     accountRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      alignSelf: 'flex-end',
       gap: 6,
       marginBottom: 4,
     },
@@ -144,11 +147,14 @@ const createStyles = (theme: Theme) =>
     subtitle: {
       textAlign: 'center',
       color: theme.textSecondary,
+      width: '100%',
     },
     footer: {
-      marginTop: 8,
+      marginTop: 'auto',
+      paddingTop: 16,
       textAlign: 'center',
       color: theme.textMuted,
+      width: '100%',
     },
     slots: {
       width: '100%',

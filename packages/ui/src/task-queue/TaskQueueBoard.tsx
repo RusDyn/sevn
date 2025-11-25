@@ -69,7 +69,8 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       gap: 12,
-      flex: 1, // Allow container to fill space
+      flex: 1,
+      width: '100%',
     },
     queue: {
       gap: 10,
@@ -82,12 +83,10 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.background,
     },
     emptyContainer: {
-      flex: 1, // Fill available space to center vertically
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 64,
       gap: 12,
-      minHeight: 300, // Ensure minimum height for centering if content is short
     },
     emptyTitle: {
       color: theme.text,
