@@ -316,47 +316,45 @@ export const TaskComposer = ({
 
               {error && <Text style={styles.errorText}>{error}</Text>}
 
-              <View style={styles.optionsContainer}>
-                <Pressable
-                  style={[styles.optionButton, !input.trim() && styles.optionDisabled]}
-                  onPress={handleSplit}
-                  disabled={!input.trim() || submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={theme.text} size="small" />
-                  ) : (
-                    <Text style={styles.optionText}>{'\u2728'} Split</Text>
-                  )}
-                </Pressable>
+              {input.trim() && (
+                <View style={styles.optionsContainer}>
+                  <Pressable
+                    style={styles.optionButton}
+                    onPress={handleSplit}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color={theme.text} size="small" />
+                    ) : (
+                      <Text style={styles.optionText}>{'\u2728'} Split</Text>
+                    )}
+                  </Pressable>
 
-                <View style={styles.row}>
-                  <Pressable
-                    style={[
-                      styles.optionButton,
-                      styles.aiButton,
-                      !input.trim() && styles.optionDisabled,
-                    ]}
-                    onPress={() => handleAddTasks('ai')}
-                    disabled={!input.trim() || submitting}
-                  >
-                    <Text style={styles.optionText}>AI Decide</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.optionButton, !input.trim() && styles.optionDisabled]}
-                    onPress={() => handleAddTasks('top')}
-                    disabled={!input.trim() || submitting}
-                  >
-                    <Text style={styles.optionText}>Top</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.optionButton, !input.trim() && styles.optionDisabled]}
-                    onPress={() => handleAddTasks('bottom')}
-                    disabled={!input.trim() || submitting}
-                  >
-                    <Text style={styles.optionText}>Bottom</Text>
-                  </Pressable>
+                  <View style={styles.row}>
+                    <Pressable
+                      style={[styles.optionButton, styles.aiButton]}
+                      onPress={() => handleAddTasks('ai')}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.optionText}>AI Decide</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.optionButton}
+                      onPress={() => handleAddTasks('top')}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.optionText}>Top</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.optionButton}
+                      onPress={() => handleAddTasks('bottom')}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.optionText}>Bottom</Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
           ) : (
             <View style={styles.content}>
