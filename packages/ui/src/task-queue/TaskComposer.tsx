@@ -116,7 +116,6 @@ export const TaskComposer = ({
       );
     } catch (_captureError) {
       setError('Unable to start speech capture.');
-    } finally {
       setSpeechState('idle');
     }
   };
