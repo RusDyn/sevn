@@ -1,64 +1,63 @@
-import type { TaskClient, TaskRow } from '@sevn/task-core';
-import { useRealtimeTaskQueue } from '@sevn/task-core';
+import type { TaskRow } from '@sevn/task-core';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { EmptyQueueState } from './EmptyQueueState';
 import { StreakHeader, type StreakHeaderProps } from './StreakHeader';
 import { TaskCard } from './TaskCard';
+import { type Theme, useTheme } from '../theme';
 
 export type TaskQueueBoardProps = {
-  client: TaskClient | null;
-  ownerId?: string;
+  tasks: TaskRow[];
   streak?: Pick<StreakHeaderProps, 'count' | 'label' | 'accessory'>;
   onPressTask?: (task: TaskRow) => void;
+  onComplete: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
+  onDeprioritize: (taskId: string) => void;
 };
 
-const VISIBLE_POSITIONS = Array.from({ length: 7 }).map((_, index) => index + 1);
+export const TaskQueueBoard = ({
+  tasks,
+  streak,
+  onPressTask,
+  onComplete,
+  onDelete,
+  onDeprioritize,
+}: TaskQueueBoardProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
-export const TaskQueueBoard = ({ client, ownerId, streak, onPressTask }: TaskQueueBoardProps) => {
-  const enabled = Boolean(ownerId);
+  // If we have no tasks, we render the empty state
+  if (tasks.length === 0) {
+    return (
+      <View style={styles.container}>
+        {streak ? <StreakHeader {...streak} /> : null}
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>Today is clear.</Text>
+          <Text style={styles.emptySubtitle}>
+            Settle in, pick one meaningful task, and begin calmly.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
-  const { data, loading, completeTask, deleteTask, deprioritizeTask } = useRealtimeTaskQueue(client, {
-    ownerId,
-    enabled,
-  });
-
-  const queue = enabled ? data : [];
-  const isLoading = enabled && loading;
-
-  const tasksByPosition = useMemo(
-    () =>
-      queue.reduce<Record<number, TaskRow>>((positions, task) => {
-        positions[task.position] = task;
-        return positions;
-      }, {}),
-    [queue]
-  );
+  // We only render the tasks that actually exist, up to 7
+  const visibleTasks = tasks.slice(0, 7);
 
   return (
     <View style={styles.container}>
       {streak ? <StreakHeader {...streak} /> : null}
-      <Text style={styles.queueLabel} accessibilityRole="header">
-        Focus queue
-      </Text>
       <View style={styles.queue} accessibilityRole="list">
-        {VISIBLE_POSITIONS.map((position) => (
-          <View key={position} style={styles.slot} accessibilityRole="listitem">
-            {tasksByPosition[position] ? (
-              <TaskCard
-                position={position}
-                task={tasksByPosition[position]}
-                onComplete={() => completeTask(tasksByPosition[position].id)}
-                onDelete={() => deleteTask(tasksByPosition[position].id)}
-                onDeprioritize={() => deprioritizeTask(tasksByPosition[position].id)}
-                onPress={onPressTask}
-              />
-            ) : isLoading ? (
-              <EmptyQueueState position={position} message="Loading task..." />
-            ) : (
-              <EmptyQueueState position={position} />
-            )}
+        {visibleTasks.map((task) => (
+          <View key={task.id} style={styles.slot}>
+            <TaskCard
+              position={task.position}
+              task={task}
+              onComplete={onComplete}
+              onDelete={onDelete}
+              onDeprioritize={onDeprioritize}
+              onPress={onPressTask}
+            />
           </View>
         ))}
       </View>
@@ -66,24 +65,38 @@ export const TaskQueueBoard = ({ client, ownerId, streak, onPressTask }: TaskQue
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 12,
-  },
-  queueLabel: {
-    color: '#e2e8f0',
-    fontWeight: '800',
-    fontSize: 18,
-    paddingHorizontal: 12,
-  },
-  queue: {
-    gap: 10,
-  },
-  slot: {
-    borderColor: '#0f172a',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 8,
-    backgroundColor: '#0b1021',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      gap: 12,
+      flex: 1,
+      width: '100%',
+    },
+    queue: {
+      gap: 10,
+    },
+    slot: {
+      borderColor: theme.border,
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: 8,
+      backgroundColor: theme.background,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    emptyTitle: {
+      color: theme.text,
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    emptySubtitle: {
+      color: theme.textMuted,
+      fontSize: 16,
+      textAlign: 'center',
+      maxWidth: 300,
+    },
+  });

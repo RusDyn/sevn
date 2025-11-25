@@ -13,10 +13,7 @@ export type ProgressSnapshot = {
   consecutiveCompletions: number;
 };
 
-export type ProgressEventName =
-  | 'streak_extended'
-  | 'streak_reset'
-  | 'micro_moment_three_in_a_row';
+export type ProgressEventName = 'streak_extended' | 'streak_reset' | 'micro_moment_three_in_a_row';
 
 export type ProgressEvent = {
   name: ProgressEventName;
@@ -65,7 +62,7 @@ const daysBetween = (lhs: string, rhs: string) => {
 export const applyCompletionToProgress = (
   completion: CompletionRecord,
   snapshot: ProgressSnapshot = initialProgressSnapshot,
-  options: { microMomentWindowMinutes?: number } = {},
+  options: { microMomentWindowMinutes?: number } = {}
 ) => {
   const events: ProgressEvent[] = [];
   const completedAt = new Date(completion.completedAt);
@@ -86,7 +83,10 @@ export const applyCompletionToProgress = (
     nextSnapshot.currentStreak = 1;
     events.push({
       name: 'streak_extended',
-      properties: { streak: nextSnapshot.currentStreak, longestStreak: nextSnapshot.longestStreak || 1 },
+      properties: {
+        streak: nextSnapshot.currentStreak,
+        longestStreak: nextSnapshot.longestStreak || 1,
+      },
     });
   } else if (daysSinceLast === 0) {
     nextSnapshot.currentStreak = Math.max(snapshot.currentStreak, 1);
@@ -120,9 +120,7 @@ export const applyCompletionToProgress = (
     ? completedAt.getTime() - new Date(snapshot.lastCompletedAt).getTime() <= microMomentWindowMs
     : false;
 
-  nextSnapshot.consecutiveCompletions = withinWindow
-    ? snapshot.consecutiveCompletions + 1
-    : 1;
+  nextSnapshot.consecutiveCompletions = withinWindow ? snapshot.consecutiveCompletions + 1 : 1;
 
   if (nextSnapshot.consecutiveCompletions >= 3 && nextSnapshot.consecutiveCompletions % 3 === 0) {
     events.push({
@@ -139,7 +137,7 @@ export const applyCompletionToProgress = (
 
 export const deriveFocusMessages = (
   snapshot: ProgressSnapshot,
-  events: ProgressEvent[] = [],
+  events: ProgressEvent[] = []
 ): FocusMessage => {
   let header =
     snapshot.currentStreak > 0
@@ -168,7 +166,7 @@ export const deriveFocusMessages = (
 
 export const dispatchProgressEvents = async (
   events: ProgressEvent[],
-  telemetry?: ProgressTelemetry,
+  telemetry?: ProgressTelemetry
 ) => {
   let delivered = 0;
 

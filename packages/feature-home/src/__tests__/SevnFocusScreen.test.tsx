@@ -14,7 +14,9 @@ jest.mock('@sevn/task-core', () => {
 });
 
 const mockUseEnvTaskClient = useEnvTaskClient as jest.MockedFunction<typeof useEnvTaskClient>;
-const mockUseRealtimeTaskQueue = useRealtimeTaskQueue as jest.MockedFunction<typeof useRealtimeTaskQueue>;
+const mockUseRealtimeTaskQueue = useRealtimeTaskQueue as jest.MockedFunction<
+  typeof useRealtimeTaskQueue
+>;
 const mockUseTaskSession = useTaskSession as jest.MockedFunction<typeof useTaskSession>;
 const stubClient = { client: {} } as never;
 
@@ -28,11 +30,13 @@ beforeEach(() => {
     completeTask: jest.fn(),
     deleteTask: jest.fn(),
     deprioritizeTask: jest.fn(),
+    moveTask: jest.fn(),
   });
   mockUseTaskSession.mockReturnValue({
     client: stubClient,
-    session: { user: { id: 'owner-123' } } as never,
+    session: { user: { id: 'owner-123', email: 'test@example.com' } } as never,
     ownerId: 'owner-123',
+    userEmail: 'test@example.com',
     status: 'authenticated',
     loading: false,
     invalidSession: false,
@@ -47,9 +51,16 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
+const defaultProps = {
+  tasks: [],
+  onComplete: jest.fn(),
+  onDelete: jest.fn(),
+  onDeprioritize: jest.fn(),
+};
+
 describe('SevnFocusScreen', () => {
   it('shows calm header and footer messages by default', () => {
-    render(<SevnFocusScreen />);
+    render(<SevnFocusScreen {...defaultProps} />);
 
     expect(screen.getByText(/Settle in/i)).toBeTruthy();
     expect(screen.getByText(/breath/i)).toBeTruthy();
@@ -59,9 +70,12 @@ describe('SevnFocusScreen', () => {
 
   it('applies custom focus messages', () => {
     render(
-      <SevnFocusScreen messages={{ header: 'Custom header', footer: 'Custom footer' }}>
+      <SevnFocusScreen
+        {...defaultProps}
+        messages={{ header: 'Custom header', footer: 'Custom footer' }}
+      >
         <></>
-      </SevnFocusScreen>,
+      </SevnFocusScreen>
     );
 
     expect(screen.getByText('Custom header')).toBeTruthy();

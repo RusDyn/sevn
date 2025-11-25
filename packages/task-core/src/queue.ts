@@ -25,10 +25,13 @@ export const deriveVisibleQueue = (tasks: TaskRow[], size: number = QUEUE_WINDOW
   normalizeQueuePositions(tasks.filter(isQueueTask)).slice(0, size);
 
 export const normalizeQueuePositions = <T extends PositionedTask>(tasks: T[]): T[] =>
-  sortByPosition(tasks).map((task, index) => ({
-    ...task,
-    position: index + 1,
-  } as T));
+  sortByPosition(tasks).map(
+    (task, index) =>
+      ({
+        ...task,
+        position: index + 1,
+      }) as T
+  );
 
 export const reorderQueue = <T extends PositionedTask>(tasks: T[], move: QueueMove): T[] => {
   const ordered = sortByPosition(tasks) as T[];
@@ -41,10 +44,13 @@ export const reorderQueue = <T extends PositionedTask>(tasks: T[], move: QueueMo
   ordered.splice(destination, 0, removed);
 
   // Renumber positions WITHOUT re-sorting (splice already set the order)
-  return ordered.map((task, index) => ({
-    ...task,
-    position: index + 1,
-  } as T));
+  return ordered.map(
+    (task, index) =>
+      ({
+        ...task,
+        position: index + 1,
+      }) as T
+  );
 };
 
 export const buildPositionUpdates = (

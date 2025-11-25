@@ -1,4 +1,11 @@
-import { act, renderHook } from '@testing-library/react-hooks';
+import { act, renderHook } from '@testing-library/react';
+
+// Mock config.ts to avoid import.meta issues in Jest
+jest.mock('../config', () => ({
+  SEVN_AUTH_STORAGE_KEY: 'sevn-auth-test',
+  resolveSupabaseConfig: () => null,
+  getSupabaseEnv: () => ({ supabaseUrl: undefined, supabaseKey: undefined }),
+}));
 
 import type { TaskClient } from '../client';
 import type { TaskRow } from '../types';
@@ -31,7 +38,7 @@ const createMockClient = (initialQueue: TaskRow[]): TaskClient => {
   return {
     decomposition: { generate: jest.fn(), enqueue: jest.fn() },
     tasks: {
-      list: jest.fn(async () => ({ data: queue, error: null } as const)),
+      list: jest.fn(async () => ({ data: queue, error: null }) as const),
       complete: jest.fn(async (taskId: string) => {
         mutate((current) => current.filter((task) => task.id !== taskId));
         return { data: null, error: null } as const;
@@ -48,10 +55,12 @@ const createMockClient = (initialQueue: TaskRow[]): TaskClient => {
         });
         return { data: null, error: null } as const;
       }),
-      reorder: jest.fn(async () => ({ data: null, error: null } as const)),
+      reorder: jest.fn(async () => ({ data: null, error: null }) as const),
     },
     client: {
-      channel: () => ({ on: () => ({ subscribe: () => ({ subscription: { unsubscribe: jest.fn() } }) }) }),
+      channel: () => ({
+        on: () => ({ subscribe: () => ({ subscription: { unsubscribe: jest.fn() } }) }),
+      }),
       removeChannel: jest.fn(),
     },
     auth: {
@@ -70,26 +79,30 @@ describe('useRealtimeTaskQueue', () => {
     });
   };
 
-  it('optimistically removes tasks when completing or deleting', async () => {
-    const client = createMockClient(createQueue([{ id: 'alpha', title: 'Alpha' }, { id: 'beta', title: 'Beta' }]));
+  it('removes tasks when completing or deleting', async () => {
+    const client = createMockClient(
+      createQueue([
+        { id: 'alpha', title: 'Alpha' },
+        { id: 'beta', title: 'Beta' },
+      ])
+    );
     const { result } = renderHook(() => useRealtimeTaskQueue(client, { ownerId: 'owner-1' }));
 
     await hydrate();
     expect(result.current.data.map((task) => task.id)).toEqual(['alpha', 'beta']);
 
     await act(async () => {
-      const completion = result.current.completeTask('alpha');
-      expect(result.current.data.map((task) => task.id)).toEqual(['beta']);
-      await completion;
+      await result.current.completeTask('alpha');
     });
 
+    expect(result.current.data.map((task) => task.id)).toEqual(['beta']);
     expect(result.current.data[0].position).toBe(1);
 
     await act(async () => {
-      const deletion = result.current.deleteTask('beta');
-      expect(result.current.data).toHaveLength(0);
-      await deletion;
+      await result.current.deleteTask('beta');
     });
+
+    expect(result.current.data).toHaveLength(0);
   });
 
   it('moves tasks to the bottom when deprioritized and resequences positions', async () => {

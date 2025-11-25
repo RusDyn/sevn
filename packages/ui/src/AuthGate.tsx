@@ -63,6 +63,7 @@ export type AuthGateProps = {
   client: TaskClient | null;
   children: (context: {
     ownerId: string;
+    userEmail: string | null;
     client: TaskClient;
     signOut: () => Promise<void>;
   }) => ReactNode;
@@ -77,6 +78,7 @@ export const AuthGate = ({ client, children, style, missingClientHint }: AuthGat
   const {
     client: authedClient,
     ownerId,
+    userEmail,
     loading,
     status,
     invalidSession,
@@ -144,7 +146,7 @@ export const AuthGate = ({ client, children, style, missingClientHint }: AuthGat
     );
   }
 
-  return <>{children({ ownerId, client: authedClient, signOut: handleSignOut })}</>;
+  return <>{children({ ownerId, userEmail, client: authedClient, signOut: handleSignOut })}</>;
 };
 
 const AuthPanels = ({

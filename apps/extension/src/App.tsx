@@ -1,12 +1,62 @@
 import type { TaskAnalyticsEvent } from '@sevn/task-core';
+import { useRealtimeTaskQueue } from '@sevn/task-core';
 import { AuthGate, Paragraph, Strong, TaskComposer, TaskQueueBoard } from '@sevn/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { taskClient } from './taskClient';
 import { useSpeechAdapter } from './useSpeechAdapter';
 
+import type { TaskClient } from '@sevn/task-core';
+import type { SpeechAdapter } from '@sevn/ui';
+
 const logAnalytics = (event: TaskAnalyticsEvent) => {
   console.info('[extension-analytics]', event.name, event.properties ?? {});
+};
+
+type TaskBoardContentProps = {
+  client: TaskClient;
+  ownerId: string;
+  signOut: () => void;
+  speechAdapter: SpeechAdapter;
+};
+
+const TaskBoardContent = ({ client, ownerId, signOut, speechAdapter }: TaskBoardContentProps) => {
+  const {
+    data: tasks,
+    completeTask,
+    deleteTask,
+    deprioritizeTask,
+  } = useRealtimeTaskQueue(client, {
+    ownerId,
+  });
+
+  return (
+    <>
+      <View style={[styles.card, styles.row]}>
+        <Paragraph style={styles.helper}>Signed in as {ownerId}</Paragraph>
+        <Pressable accessibilityRole="button" onPress={signOut}>
+          <Paragraph style={styles.link}>Sign out</Paragraph>
+        </Pressable>
+      </View>
+      <View style={styles.card}>
+        <TaskQueueBoard
+          tasks={tasks}
+          onComplete={completeTask}
+          onDelete={deleteTask}
+          onDeprioritize={deprioritizeTask}
+        />
+      </View>
+      <View style={styles.card}>
+        <TaskComposer
+          client={client}
+          ownerId={ownerId}
+          speechAdapter={speechAdapter}
+          analytics={logAnalytics}
+          existingTasks={tasks}
+        />
+      </View>
+    </>
+  );
 };
 
 function App() {
@@ -22,27 +72,17 @@ function App() {
           Manage tasks with swipes or the toolbar buttons beneath each card.
         </Paragraph>
       </View>
-      <AuthGate client={taskClient} missingClientHint="Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sign in.">
+      <AuthGate
+        client={taskClient}
+        missingClientHint="Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sign in."
+      >
         {({ client, ownerId, signOut }) => (
-          <>
-            <View style={[styles.card, styles.row]}>
-              <Paragraph style={styles.helper}>Signed in as {ownerId}</Paragraph>
-              <Pressable accessibilityRole="button" onPress={signOut}>
-                <Paragraph style={styles.link}>Sign out</Paragraph>
-              </Pressable>
-            </View>
-            <View style={styles.card}>
-              <TaskQueueBoard client={client} ownerId={ownerId} />
-            </View>
-            <View style={styles.card}>
-              <TaskComposer
-                client={client}
-                ownerId={ownerId}
-                speechAdapter={speechAdapter}
-                analytics={logAnalytics}
-              />
-            </View>
-          </>
+          <TaskBoardContent
+            client={client}
+            ownerId={ownerId}
+            signOut={signOut}
+            speechAdapter={speechAdapter}
+          />
         )}
       </AuthGate>
     </View>

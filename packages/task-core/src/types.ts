@@ -1,4 +1,10 @@
-import type { Database as GeneratedDatabase, Tables, TablesInsert, TablesUpdate, Enums } from './database.types';
+import type {
+  Database as GeneratedDatabase,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+  Enums,
+} from './database.types';
 
 // Re-export the generated Database type
 export type Database = GeneratedDatabase;
@@ -41,6 +47,33 @@ export type TaskDecompositionRequest = {
 export type TaskDecompositionResponse = {
   tasks: TaskDraft[];
   summary?: string;
+};
+
+export type TranscriptionResponse = {
+  text: string;
+  language?: string;
+  duration?: number;
+};
+
+export type AutoOrderRequest = {
+  newTask: {
+    title: string;
+    description?: string | null;
+    priority?: string;
+  };
+  existingTasks: Array<{
+    id: string;
+    title: string;
+    description?: string | null;
+    priority: string;
+    position: number;
+  }>;
+  ownerId?: string;
+};
+
+export type AutoOrderResponse = {
+  position: number;
+  reasoning?: string;
 };
 
 export type TaskAnalyticsEventName =

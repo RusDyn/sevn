@@ -1,13 +1,13 @@
-import { StyleSheet, Text, TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 
 export const Strong = ({ children, style, ...props }: TextProps) => (
-  <Text {...props} style={[$strong, style]}>
+  <Text {...props} style={[styles.strong, style as TextStyle]}>
     {children}
   </Text>
 );
 
-const { $strong } = StyleSheet.create({
-  $strong: {
+const styles = StyleSheet.create({
+  strong: {
     fontWeight: 'bold',
   },
 });
