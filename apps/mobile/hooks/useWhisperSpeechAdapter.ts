@@ -2,6 +2,8 @@ import { type TaskClient } from '@sevn/task-core';
 import { useRef, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { AudioContext } from 'react-native-audio-api';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 import type { SpeechAdapter, SpeechState } from '@sevn/ui';
 
@@ -10,6 +12,7 @@ type StreamingState = {
   audioContext: AudioContext | null;
   analyser: AnalyserNode | null;
   stream: MediaStream | null;
+  recording: Audio.Recording | null;
   animationFrame: number | null;
   onText: ((transcript: string) => void) | null;
   onStateChange: ((state: SpeechState) => void) | null;
@@ -85,6 +88,7 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     audioContext: null,
     analyser: null,
     stream: null,
+    recording: null,
     animationFrame: null,
     onText: null,
     onStateChange: null,
@@ -99,12 +103,20 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     state.analyser?.disconnect();
     state.audioContext?.close();
     state.stream?.getTracks().forEach((t) => t.stop());
+    if (state.recording) {
+      try {
+        state.recording.stopAndUnloadAsync();
+      } catch (error) {
+        console.warn('Failed to stop recording', error);
+      }
+    }
     state.ws?.close();
     stateRef.current = {
       ws: null,
       audioContext: null,
       analyser: null,
       stream: null,
+      recording: null,
       animationFrame: null,
       onText: null,
       onStateChange: null,
@@ -195,8 +207,53 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
         stateRef.current.onStateChange?.('idle');
       };
 
-      // Set up audio capture - works on both web and native via react-native-audio-api
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Native runtimes do not implement navigator.mediaDevices; use expo-av recording instead
+      if (Platform.OS !== 'web') {
+        const { granted } = await Audio.requestPermissionsAsync();
+        if (!granted) {
+          throw new Error('Microphone permission not granted');
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+        });
+
+        const recording = new Audio.Recording();
+        await recording.prepareToRecordAsync({
+          isMeteringEnabled: false,
+          android: {
+            extension: '.wav',
+            outputFormat: Audio.AndroidOutputFormat.WEBM,
+            audioEncoder: Audio.AndroidAudioEncoder.OPUS,
+            sampleRate: 24000,
+            numberOfChannels: 1,
+          },
+          ios: {
+            extension: '.wav',
+            outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+            audioQuality: Audio.IOSAudioQuality.MAX,
+            sampleRate: 24000,
+            numberOfChannels: 1,
+            bitRateStrategy: Audio.IOSBitRateStrategyConstant,
+          },
+          web: {},
+        });
+        await recording.startAsync();
+
+        stateRef.current.recording = recording;
+        onStateChange?.('recording');
+        return;
+      }
+
+      // Web audio capture path
+      const mediaDevices = navigator.mediaDevices;
+      if (!mediaDevices?.getUserMedia) {
+        throw new Error('Browser does not support audio capture');
+      }
+
+      const stream = await mediaDevices.getUserMedia({
         audio: {
           sampleRate: 24000,
           channelCount: 1,
@@ -241,9 +298,35 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
   );
 
   const stopRecording = useCallback(async () => {
-    const { ws, onStateChange } = stateRef.current;
+    const { ws, onStateChange, recording } = stateRef.current;
 
-    if (ws?.readyState === WebSocket.OPEN) {
+    if (Platform.OS !== 'web' && recording && ws?.readyState === WebSocket.OPEN) {
+      try {
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        if (uri) {
+          const base64Wav = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const wavBytes = Buffer.from(base64Wav, 'base64');
+
+          // Strip WAV header if present (first 44 bytes)
+          const pcmBytes = wavBytes.byteLength > 44 ? wavBytes.slice(44) : wavBytes;
+
+          ws.send(
+            JSON.stringify({
+              type: 'input_audio_buffer.append',
+              audio: Buffer.from(pcmBytes).toString('base64'),
+            })
+          );
+          ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error('Failed to finalize native recording', error);
+      }
+    } else if (ws?.readyState === WebSocket.OPEN) {
       // Commit the audio buffer to finalize transcription
       ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
 
