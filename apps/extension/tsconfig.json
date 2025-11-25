@@ -8,7 +8,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "react-native": ["./node_modules/react-native-web"]
+      "react-native": ["./src/react-native-web-shim.ts"]
     },
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,

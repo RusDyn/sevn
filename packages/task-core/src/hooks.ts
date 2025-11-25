@@ -31,11 +31,18 @@ export type TaskSession = {
   client: TaskClient | null;
   session: Session | null;
   ownerId: string | null;
+  userEmail: string | null;
   status: TaskSessionStatus;
   loading: boolean;
   invalidSession: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ error: { message?: string } | null }>;
+  signInWithEmail: (
+    email: string,
+    password: string
+  ) => Promise<{ error: { message?: string } | null }>;
+  signUpWithEmail: (
+    email: string,
+    password: string
+  ) => Promise<{ error: { message?: string } | null }>;
   resetPasswordForEmail: (email: string) => Promise<{ error: { message?: string } | null }>;
   signOut: () => Promise<{ error: { message?: string } | null }>;
 };
@@ -43,7 +50,7 @@ export type TaskSession = {
 const resolveSessionStatus = (
   client: TaskClient | null,
   session: Session | null,
-  loading: boolean,
+  loading: boolean
 ): TaskSessionStatus => {
   if (loading) return 'loading';
   if (!client) return 'missing-client';
@@ -91,7 +98,11 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
   }, [client]);
 
   const ownerId = session?.user?.id ?? null;
-  const status = useMemo(() => resolveSessionStatus(client, session, loading), [client, loading, session]);
+  const userEmail = session?.user?.email ?? null;
+  const status = useMemo(
+    () => resolveSessionStatus(client, session, loading),
+    [client, loading, session]
+  );
 
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
@@ -100,7 +111,7 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
       const { error } = await client.auth.signInWithEmail(email, password);
       return { error } as const;
     },
-    [client],
+    [client]
   );
 
   const signUpWithEmail = useCallback(
@@ -110,7 +121,7 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
       const { error } = await client.auth.signUpWithEmail(email, password);
       return { error } as const;
     },
-    [client],
+    [client]
   );
 
   const resetPasswordForEmail = useCallback(
@@ -120,7 +131,7 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
       const { error } = await client.auth.resetPasswordForEmail(email);
       return { error } as const;
     },
-    [client],
+    [client]
   );
 
   const signOut = useCallback(async () => {
@@ -134,6 +145,7 @@ export const useTaskSession = (client: TaskClient | null): TaskSession => {
     client,
     session,
     ownerId,
+    userEmail,
     status,
     loading,
     invalidSession: status === 'invalid-session',

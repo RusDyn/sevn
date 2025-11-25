@@ -1,9 +1,10 @@
-// @ts-nocheck
 import { createClient, type PostgrestError, type Provider } from '@supabase/supabase-js';
 import { SEVN_AUTH_STORAGE_KEY } from './config';
 
 import { applyPositionsToDrafts } from './decomposition';
 import type {
+  AutoOrderRequest,
+  AutoOrderResponse,
   Database,
   QueueMove,
   TaskDecompositionRequest,
@@ -13,6 +14,7 @@ import type {
   TaskRow,
   TaskSortKey,
   TaskUpdate,
+  TranscriptionResponse,
 } from './types';
 
 export type TaskClientConfig = {
@@ -63,10 +65,21 @@ export const createTaskClient = ({
   const getTask = (id: string) => client.from('tasks').select('*').eq('id', id).single();
 
   const createTask = (payload: TaskInsert) =>
-    client.from('tasks').insert(payload as any).select().single();
+    client
+      .from('tasks')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as any)
+      .select()
+      .single();
 
   const updateTask = (id: string, payload: TaskUpdate) =>
-    client.from('tasks').update(payload as any).eq('id', id).select().single();
+    client
+      .from('tasks')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as any)
+      .eq('id', id)
+      .select()
+      .single();
 
   const resolveOwnerId = async (taskId: string, scope?: { ownerId?: string }) => {
     if (scope?.ownerId) {
@@ -121,6 +134,33 @@ export const createTaskClient = ({
   const decomposeTasks = async (input: TaskDecompositionRequest) =>
     client.functions.invoke<TaskDecompositionResponse>('decompose-tasks', { body: input });
 
+  const transcribeAudio = async (audioBlob: Blob, language?: string) => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.m4a');
+    if (language) {
+      formData.append('language', language);
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/transcribe-voice`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { data: null, error: new Error(errorData.error ?? 'Transcription failed') };
+    }
+
+    const data: TranscriptionResponse = await response.json();
+    return { data, error: null };
+  };
+
+  const autoOrderTask = async (request: AutoOrderRequest) =>
+    client.functions.invoke<AutoOrderResponse>('auto-order-task', { body: request });
+
   const enqueueDrafts = async (drafts: TaskDraft[], ownerId: string) => {
     let attempt = 0;
     let lastError: PostgrestError | null = null;
@@ -138,7 +178,11 @@ export const createTaskClient = ({
         return { data: [], error: null } as const;
       }
 
-      const { data, error: insertError } = await client.from('tasks').insert(inserts as any).select();
+      const { data, error: insertError } = await client
+        .from('tasks')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(inserts as any)
+        .select();
 
       if (!insertError) {
         return { data, error: null } as const;
@@ -160,12 +204,15 @@ export const createTaskClient = ({
     } as const;
   };
 
+  type RpcFunctionName = keyof Database['public']['Functions'];
+
   const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
-    fnName: string,
+    fnName: RpcFunctionName,
     params: Params,
     fallback: () => Promise<{ data: TaskRow[] | null; error: unknown }>
   ) => {
-    const { data, error } = await client.rpc(fnName, params as never);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await client.rpc(fnName, params as any);
 
     if (error && isMissingFunctionError(error)) {
       return fallback();
@@ -195,6 +242,7 @@ export const createTaskClient = ({
       active.map((task, index) =>
         client
           .from('tasks')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .update({ position: index + 1 } as any)
           .eq('id', (task as TaskRow).id)
       )
@@ -217,7 +265,11 @@ export const createTaskClient = ({
   const completeAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
     const ownerId = await resolveOwnerId(taskId, scope);
 
-    const { error } = await client.from('tasks').update({ state: 'done' } as any).eq('id', taskId);
+    const { error } = await client
+      .from('tasks')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ state: 'done' } as any)
+      .eq('id', taskId);
     if (error) {
       return { data: null, error };
     }
@@ -236,6 +288,7 @@ export const createTaskClient = ({
     const lastPosition = active.length + 1;
     const { error: updateError } = await client
       .from('tasks')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update({ position: lastPosition } as any)
       .eq('id', taskId);
     if (updateError) {
@@ -265,6 +318,7 @@ export const createTaskClient = ({
       remaining.map((task, index) =>
         client
           .from('tasks')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .update({ position: index + 1 } as any)
           .eq('id', (task as TaskRow).id)
       )
@@ -295,6 +349,12 @@ export const createTaskClient = ({
     decomposition: {
       generate: decomposeTasks,
       enqueue: enqueueDrafts,
+    },
+    voice: {
+      transcribe: transcribeAudio,
+    },
+    ai: {
+      autoOrder: autoOrderTask,
     },
   };
 };

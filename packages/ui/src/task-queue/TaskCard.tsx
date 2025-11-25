@@ -1,23 +1,25 @@
 import type { TaskRow } from '@sevn/task-core';
-import { ReactNode, useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import { ReactNode, useMemo, useRef } from 'react';
+import {
+  type GestureResponderEvent,
+  PanResponder,
+  type PanResponderGestureState,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { announce, triggerHaptic } from './feedback';
+import { type Theme, useTheme } from '../theme';
 
 export type TaskCardProps = {
   position: number;
   task: TaskRow;
   accessory?: ReactNode;
-  onComplete?: (task: TaskRow) => void;
-  onDelete?: (task: TaskRow) => void;
-  onDeprioritize?: (task: TaskRow) => void;
+  onComplete?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
+  onDeprioritize?: (taskId: string) => void;
   onPress?: (task: TaskRow) => void;
 };
 
@@ -32,23 +34,25 @@ export const TaskCard = ({
   onDeprioritize,
   onPress,
 }: TaskCardProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
 
   const handleComplete = () => {
-    onComplete?.(task);
+    onComplete?.(task.id);
     triggerHaptic('complete');
     announce(`${task.title} completed`);
   };
 
   const handleDelete = () => {
-    onDelete?.(task);
+    onDelete?.(task.id);
     triggerHaptic('delete');
     announce(`${task.title} deleted`);
   };
 
   const handleDeprioritize = () => {
-    onDeprioritize?.(task);
+    onDeprioritize?.(task.id);
     triggerHaptic('deprioritize');
     announce(`${task.title} moved to a lower priority`);
   };
@@ -68,151 +72,169 @@ export const TaskCard = ({
     }
   };
 
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .minDistance(8)
-        .onUpdate((event) => {
-          translateX.value = event.translationX;
-          translateY.value = event.translationY;
-        })
-        .onEnd((event) => {
-          translateX.value = withSpring(0);
-          translateY.value = withSpring(0);
-          runOnJS(handleGestureEnd)(event.translationX, event.translationY);
-        }),
-    [handleGestureEnd, translateX, translateY]
-  );
+  const isPressed = useSharedValue(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const hasMoved = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (
+        _: GestureResponderEvent,
+        gestureState: PanResponderGestureState
+      ) => {
+        const { dx, dy } = gestureState;
+        return Math.abs(dx) > 5 || Math.abs(dy) > 5;
+      },
+      onPanResponderGrant: () => {
+        isPressed.value = true;
+        hasMoved.current = false;
+        startX.current = 0;
+        startY.current = 0;
+      },
+      onPanResponderMove: (_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+        hasMoved.current = true;
+        translateX.value = gestureState.dx;
+        translateY.value = gestureState.dy;
+      },
+      onPanResponderRelease: (_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+        isPressed.value = false;
+        const { dx, dy } = gestureState;
+
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+
+        if (hasMoved.current) {
+          handleGestureEnd(dx, dy);
+        } else {
+          onPress?.(task);
+        }
+      },
+      onPanResponderTerminate: () => {
+        isPressed.value = false;
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+      },
+    })
+  ).current;
 
   const animatedStyle = useAnimatedStyle(() => ({
+    opacity: withSpring(isPressed.value ? 0.7 : 1),
     transform: [
       { translateX: translateX.value * 0.3 },
       { translateY: translateY.value * 0.3 },
-      { scale: 1 + Math.min(Math.abs(translateX.value), Math.abs(translateY.value), 30) / 1000 },
+      {
+        scale: withSpring(
+          isPressed.value
+            ? 0.98
+            : 1 + Math.min(Math.abs(translateX.value), Math.abs(translateY.value), 30) / 1000
+        ),
+      },
     ],
   }));
 
-  const content = (
-    <Animated.View
-      style={[styles.card, animatedStyle]}
-      accessibilityRole="button"
-      accessibilityLabel={`${task.title} at position ${position}`}
-      accessibilityHint="Swipe right to complete, left to delete, down to deprioritize"
-    >
-      <View style={styles.header}>
-        <Text style={styles.position}>#{position}</Text>
-        <Text style={styles.priority}>{task.priority.toUpperCase()}</Text>
-      </View>
-      <Text style={styles.title}>{task.title}</Text>
-      {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
-      <View style={styles.footer}>
-        <Text style={styles.state}>{task.state.replace('_', ' ')}</Text>
-        {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
-      </View>
-    </Animated.View>
-  );
-
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.webContainer}>
-        <Pressable onPress={() => onPress?.(task)} accessibilityRole="button">
-          {content}
-        </Pressable>
-        <View style={styles.actions} accessibilityRole="toolbar">
-          <Pressable style={[styles.action, styles.complete]} onPress={handleComplete}>
-            <Text style={styles.actionLabel}>Complete</Text>
-          </Pressable>
-          <Pressable style={[styles.action, styles.deprioritize]} onPress={handleDeprioritize}>
-            <Text style={styles.actionLabel}>Later</Text>
-          </Pressable>
-          <Pressable style={[styles.action, styles.delete]} onPress={handleDelete}>
-            <Text style={styles.actionLabel}>Delete</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <GestureDetector gesture={panGesture}>
-      <Pressable onPress={() => onPress?.(task)}>{content}</Pressable>
-    </GestureDetector>
+    <View style={styles.gestureContainer}>
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[styles.card, animatedStyle]}
+        accessibilityRole="button"
+        accessibilityLabel={`${task.title} at position ${position}`}
+        accessibilityHint="Swipe right to complete, left to delete, down to deprioritize"
+      >
+        <View style={styles.header}>
+          <Text style={styles.position}>#{position}</Text>
+          <Text style={styles.priority}>{task.priority.toUpperCase()}</Text>
+        </View>
+        <Text style={styles.title}>{task.title}</Text>
+        {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
+        <View style={styles.footer}>
+          <Text style={styles.state}>{task.state.replace('_', ' ')}</Text>
+          {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
+        </View>
+      </Animated.View>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    borderColor: '#1f2937',
-    borderWidth: 1,
-    padding: 16,
-    gap: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  position: {
-    color: '#cbd5e1',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  priority: {
-    color: '#0ea5e9',
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 1,
-  },
-  title: {
-    color: '#f8fafc',
-    fontWeight: '700',
-    fontSize: 18,
-  },
-  description: {
-    color: '#cbd5e1',
-    fontSize: 14,
-  },
-  state: {
-    color: '#a5b4fc',
-    fontWeight: '600',
-  },
-  accessory: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  webContainer: {
-    gap: 8,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  action: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionLabel: {
-    color: '#0b1021',
-    fontWeight: '700',
-  },
-  complete: {
-    backgroundColor: '#a3e635',
-  },
-  deprioritize: {
-    backgroundColor: '#fbbf24',
-  },
-  delete: {
-    backgroundColor: '#f87171',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 16,
+      borderColor: theme.border,
+      borderWidth: 1,
+      padding: 16,
+      gap: 8,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    position: {
+      color: theme.position,
+      fontWeight: '800',
+      fontSize: 16,
+    },
+    priority: {
+      color: theme.priority,
+      fontWeight: '700',
+      fontSize: 12,
+      letterSpacing: 1,
+    },
+    title: {
+      color: theme.text,
+      fontWeight: '700',
+      fontSize: 18,
+    },
+    description: {
+      color: theme.textSecondary,
+      fontSize: 14,
+    },
+    state: {
+      color: theme.state,
+      fontWeight: '600',
+    },
+    accessory: {
+      flex: 1,
+      alignItems: 'flex-end',
+    },
+    webContainer: {
+      gap: 8,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 8,
+      justifyContent: 'space-between',
+    },
+    action: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    actionLabel: {
+      color: theme.background,
+      fontWeight: '700',
+    },
+    complete: {
+      backgroundColor: theme.success,
+    },
+    deprioritize: {
+      backgroundColor: theme.warning,
+    },
+    delete: {
+      backgroundColor: theme.error,
+    },
+    gestureContainer: {
+      // Ensure the container doesn't collapse
+    },
+  });

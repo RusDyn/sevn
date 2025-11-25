@@ -1,14 +1,32 @@
-import { applyPositionsToDrafts, type TaskAnalyticsEvent, type TaskClient, type TaskDraft } from '@sevn/task-core';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  type TaskAnalyticsEvent,
+  type TaskClient,
+  type TaskDraft,
+  type TaskRow,
+} from '@sevn/task-core';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  SafeAreaView,
+  ActivityIndicator,
+} from 'react-native';
+import { type Theme, useTheme } from '../theme';
 
-import { Paragraph } from '../Paragraph';
-import { Strong } from '../Strong';
+export type SpeechState = 'idle' | 'recording' | 'transcribing';
 
 export type SpeechAdapter = {
   supported: boolean;
   label?: string;
-  start: (onText: (transcript: string) => void) => Promise<void>;
+  start: (
+    onText: (transcript: string) => void,
+    onStateChange?: (state: SpeechState) => void
+  ) => Promise<void>;
   stop?: () => Promise<void>;
 };
 
@@ -17,7 +35,13 @@ export type TaskComposerProps = {
   ownerId: string;
   speechAdapter?: SpeechAdapter;
   analytics?: (event: TaskAnalyticsEvent) => void;
+  onTaskAdded?: () => void;
+  existingTasks?: TaskRow[];
 };
+
+type ComposerStep = 'input' | 'review';
+
+type SplitTask = TaskDraft & { selected: boolean };
 
 const logAnalytics = (analytics: TaskComposerProps['analytics'], event: TaskAnalyticsEvent) => {
   try {
@@ -25,445 +49,581 @@ const logAnalytics = (analytics: TaskComposerProps['analytics'], event: TaskAnal
       analytics(event);
       return;
     }
-
     console.info('[task-intake]', event.name, event.properties ?? {});
   } catch (error) {
     console.warn('Analytics logger failed', error);
   }
 };
 
-export const TaskComposer = ({ client, ownerId, speechAdapter, analytics }: TaskComposerProps) => {
+export const TaskComposer = ({
+  client,
+  ownerId,
+  speechAdapter,
+  analytics,
+  onTaskAdded,
+  existingTasks = [],
+}: TaskComposerProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [drafts, setDrafts] = useState<TaskDraft[]>([]);
-  const [summary, setSummary] = useState('');
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [listening, setListening] = useState(false);
+  const [speechState, setSpeechState] = useState<SpeechState>('idle');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [path, setPath] = useState<'add' | 'plan'>('add');
+  const [mode, setMode] = useState<'voice' | 'text'>('voice');
+  const [step, setStep] = useState<ComposerStep>('input');
+  const [splitTasks, setSplitTasks] = useState<SplitTask[]>([]);
   const activeAdapter = useRef<SpeechAdapter | null>(null);
 
-  useEffect(
-    () => () => {
-      void activeAdapter.current?.stop?.();
-    },
-    []
-  );
+  const resetState = useCallback(() => {
+    setInput('');
+    setStep('input');
+    setSplitTasks([]);
+    setError(null);
+    setSubmitting(false);
+  }, []);
 
-  const toggleSelection = (index: number) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    resetState();
+  }, [resetState]);
+
+  useEffect(() => {
+    if (isOpen && mode === 'voice' && speechAdapter?.supported) {
+      void startTranscription();
+    }
+    return () => {
+      void activeAdapter.current?.stop?.();
+    };
+  }, [isOpen, mode]);
 
   const startTranscription = async () => {
-    if (!speechAdapter?.supported) {
-      setError('Voice capture is unavailable. Type your task instead.');
-      logAnalytics(analytics, { name: 'capture_failed', properties: { reason: 'unsupported_voice' } });
-      return;
-    }
-
-    if (!client) {
-      setError('Task sync is unavailable. Save tasks with Add now after connecting Supabase.');
-      logAnalytics(analytics, { name: 'capture_failed', properties: { reason: 'unsupported' } });
-      return;
-    }
+    if (!speechAdapter?.supported) return;
 
     setError(null);
-    setListening(true);
     activeAdapter.current = speechAdapter;
     logAnalytics(analytics, { name: 'capture_started' });
 
     try {
-      await speechAdapter.start((transcript) => {
-        setInput(transcript);
-        setListening(false);
-      });
-    } catch (captureError) {
-      setError('Unable to start speech capture.');
-      logAnalytics(analytics, {
-        name: 'capture_failed',
-        properties: {
-          message: captureError instanceof Error ? captureError.message : String(captureError),
+      await speechAdapter.start(
+        (transcript) => {
+          setInput(transcript);
         },
-      });
+        (state) => {
+          setSpeechState(state);
+        }
+      );
+    } catch (_captureError) {
+      setError('Unable to start speech capture.');
     } finally {
-      setListening(false);
+      setSpeechState('idle');
     }
   };
 
-  const decompose = async () => {
-    if (!client) {
-      setError('Task sync is unavailable. Configure Supabase to continue.');
-      return;
-    }
-
+  const handleSplit = async () => {
+    if (!client || !input.trim()) return;
     setSubmitting(true);
     setError(null);
+
     const { data, error: decompositionError } = await client.decomposition.generate({
       prompt: input,
       ownerId,
     });
 
     if (decompositionError || !data) {
-      setError('Could not reach the AI planner. Use Add now to save the task immediately.');
-      logAnalytics(analytics, {
-        name: 'capture_failed',
-        properties: { reason: 'llm', message: decompositionError?.message },
-      });
+      setError('Could not reach the AI planner.');
       setSubmitting(false);
       return;
     }
 
-    const tasks = data.tasks ?? [];
-    setDrafts(tasks);
-    setSummary(data.summary ?? '');
-    setSelected(new Set(tasks.map((_, index) => index)));
+    const tasks = (data.tasks ?? []).map((task) => ({
+      ...task,
+      selected: true,
+    }));
+
+    if (tasks.length === 0) {
+      setError('No tasks found in your input.');
+      setSubmitting(false);
+      return;
+    }
+
+    setSplitTasks(tasks);
+    setStep('review');
     setSubmitting(false);
-    logAnalytics(analytics, { name: 'decomposition_ready', properties: { tasks: tasks.length } });
+    logAnalytics(analytics, { name: 'decomposition_ready', properties: { count: tasks.length } });
   };
 
-  const enqueue = async () => {
-    if (!client) {
-      setError('Task sync is unavailable. Configure Supabase to continue.');
-      return;
-    }
+  const toggleTask = (index: number) => {
+    setSplitTasks((prev) =>
+      prev.map((task, i) => (i === index ? { ...task, selected: !task.selected } : task))
+    );
+  };
 
-    const chosenTasks = drafts.filter((_, index) => selected.has(index));
-    if (chosenTasks.length === 0) {
-      setError('Select at least one task to enqueue.');
-      return;
-    }
+  const handleAddTasks = async (position: 'top' | 'bottom' | 'ai') => {
+    if (!client) return;
+
+    const tasksToAdd =
+      step === 'review'
+        ? splitTasks.filter((t) => t.selected).map(({ selected: _selected, ...task }) => task)
+        : input.trim()
+          ? [{ title: input.trim() }]
+          : [];
+
+    if (tasksToAdd.length === 0) return;
 
     setSubmitting(true);
     setError(null);
 
-    const { data, error: enqueueError } = await client.decomposition.enqueue(chosenTasks, ownerId);
+    // Add tasks to the queue (they get added at bottom by default)
+    const { data, error: enqueueError } = await client.decomposition.enqueue(tasksToAdd, ownerId);
+
+    if (enqueueError || !data || data.length === 0) {
+      setError('Failed to add tasks');
+      setSubmitting(false);
+      return;
+    }
+
+    // Handle positioning
+    if (position === 'top') {
+      // Move all new tasks to the top in reverse order
+      for (let i = data.length - 1; i >= 0; i--) {
+        const { error: reorderError } = await client.tasks.reorder(
+          { taskId: data[i].id, toIndex: 0 },
+          { ownerId }
+        );
+        if (reorderError) {
+          console.warn('Failed to move task to top', reorderError);
+        }
+      }
+    } else if (position === 'ai' && data.length === 1) {
+      // Use AI to determine position for single task
+      try {
+        const { data: orderResult, error: orderError } = await client.ai.autoOrder({
+          newTask: tasksToAdd[0],
+          existingTasks: existingTasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            description: t.description,
+            priority: t.priority,
+            position: t.position,
+          })),
+          ownerId,
+        });
+
+        if (!orderError && orderResult?.position !== undefined) {
+          const targetPosition = Math.max(0, orderResult.position - 1);
+          const { error: reorderError } = await client.tasks.reorder(
+            { taskId: data[0].id, toIndex: targetPosition },
+            { ownerId }
+          );
+          if (reorderError) {
+            console.warn('Failed to reorder task by AI', reorderError);
+          }
+        }
+      } catch (aiError) {
+        console.warn('AI ordering failed, task added at bottom', aiError);
+      }
+    }
+    // For 'bottom' or multiple tasks with 'ai', they stay where they were added
 
     setSubmitting(false);
-
-    if (enqueueError) {
-      setError('Unable to enqueue tasks. Please try again.');
-      logAnalytics(analytics, {
-        name: 'capture_failed',
-        properties: { reason: 'enqueue', message: enqueueError.message },
-      });
-      return;
-    }
-
-    setInput('');
-    setDrafts([]);
-    setSelected(new Set());
-    setSummary('');
-    logAnalytics(analytics, { name: 'tasks_enqueued', properties: { count: data?.length ?? 0 } });
+    handleClose();
+    onTaskAdded?.();
+    logAnalytics(analytics, {
+      name: 'tasks_enqueued',
+      properties: { count: data.length, position },
+    });
   };
 
-  const addNow = async () => {
-    if (!client) {
-      setError('Task sync is unavailable. Configure Supabase to add tasks.');
-      return;
-    }
-
-    const title = input.trim();
-
-    if (!title) {
-      setError('Enter a task title to add it now.');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-
-    const draft: TaskDraft = { title };
-
-    const { data, error: enqueueError } = await client.decomposition.enqueue([draft], ownerId);
-
-    if (enqueueError || !data) {
-      const { data: active, error: fetchError } = await client.tasks.list(ownerId);
-
-      if (fetchError || !active) {
-        setSubmitting(false);
-        setError('Unable to add the task right now. Please try again.');
-        logAnalytics(analytics, {
-          name: 'capture_failed',
-          properties: { reason: 'add_now', message: fetchError?.message ?? enqueueError?.message },
-        });
-        return;
-      }
-
-      const [manualInsert] = applyPositionsToDrafts(active, [draft], ownerId);
-
-      if (!manualInsert) {
-        setSubmitting(false);
-        setError('Unable to add the task right now. Please try again.');
-        logAnalytics(analytics, {
-          name: 'capture_failed',
-          properties: { reason: 'add_now', message: enqueueError?.message },
-        });
-        return;
-      }
-
-      const { data: created, error: createError } = await client.tasks.create(manualInsert);
-
-      if (createError || !created) {
-        setSubmitting(false);
-        setError('Unable to add the task right now. Please try again.');
-        logAnalytics(analytics, {
-          name: 'capture_failed',
-          properties: { reason: 'add_now', message: createError?.message ?? enqueueError?.message },
-        });
-        return;
-      }
-    }
-
-    setSubmitting(false);
-    setInput('');
-    setDrafts([]);
-    setSelected(new Set());
-    setSummary('');
-    logAnalytics(analytics, { name: 'tasks_enqueued', properties: { count: 1, path: 'add_now' } });
-  };
-
-  const instructions = useMemo(
-    () =>
-      speechAdapter?.supported
-        ? 'Add now to save the task immediately, or plan tasks to let AI break down your request.'
-        : 'Voice capture is unavailable on this platform. Use the text box and Add now to capture tasks.',
-    [speechAdapter?.supported]
-  );
+  const selectedCount = splitTasks.filter((t) => t.selected).length;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Paragraph style={styles.heading}>
-          <Strong>Capture tasks</Strong>
-        </Paragraph>
-        <Paragraph style={styles.subhead}>{instructions}</Paragraph>
-      </View>
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Describe the task you want to break down"
-          placeholderTextColor="#9ca3af"
-          value={input}
-          multiline
-          onChangeText={setInput}
-        />
-        <Pressable
-          style={[styles.micButton, listening && styles.micButtonActive]}
-          accessibilityRole="button"
-          onPress={startTranscription}
-          disabled={!speechAdapter?.supported || listening}
-        >
-          <Text style={styles.micLabel}>
-            {listening ? 'Listening…' : (speechAdapter?.label ?? 'Record')}
-          </Text>
-        </Pressable>
-      </View>
-      <View style={styles.actions}>
-        <Pressable style={[styles.button, styles.secondary]} onPress={() => setDrafts([])}>
-          <Text style={styles.buttonText}>Clear</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.button, path === 'add' ? styles.primary : styles.secondary, submitting && styles.buttonDisabled]}
-          accessibilityRole="button"
-          onPress={() => {
-            setPath('add');
-            void addNow();
-          }}
-          disabled={submitting || input.trim().length === 0}
-        >
-          <Text style={path === 'add' ? styles.primaryText : styles.buttonText}>
-            {submitting && path === 'add' ? 'Adding…' : 'Add now'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.button, path === 'plan' ? styles.primary : styles.secondary, submitting && styles.buttonDisabled]}
-          accessibilityRole="button"
-          onPress={() => {
-            setPath('plan');
-            void decompose();
-          }}
-          disabled={submitting || input.trim().length === 0}
-        >
-          <Text style={path === 'plan' ? styles.primaryText : styles.buttonText}>
-            {submitting && path === 'plan' ? 'Planning…' : 'Plan tasks'}
-          </Text>
-        </Pressable>
-      </View>
-      {error ? <Paragraph style={styles.error}>{error}</Paragraph> : null}
-      {drafts.length > 0 ? (
-        <View style={styles.confirmation}>
-          <Paragraph style={styles.heading}>
-            <Strong>Confirm the checklist</Strong>
-          </Paragraph>
-          {summary ? <Paragraph style={styles.summary}>{summary}</Paragraph> : null}
-          {drafts.map((draft, index) => (
-            <Pressable
-              key={`${draft.title}-${index}`}
-              style={styles.checkRow}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: selected.has(index) }}
-              onPress={() => toggleSelection(index)}
-            >
-              <View style={[styles.checkbox, selected.has(index) && styles.checkboxChecked]} />
-              <View style={styles.checkCopy}>
-                <Text style={styles.checkTitle}>{draft.title}</Text>
-                {draft.description ? (
-                  <Paragraph style={styles.checkDescription}>{draft.description}</Paragraph>
-                ) : null}
-              </View>
+    <>
+      <Pressable style={styles.fab} onPress={() => setIsOpen(true)}>
+        <Text style={styles.fabIcon}>+</Text>
+      </Pressable>
+
+      <Modal visible={isOpen} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.header}>
+            {step === 'review' && (
+              <Pressable onPress={() => setStep('input')} style={styles.backButton}>
+                <Text style={styles.backIcon}>{'\u2190'}</Text>
+              </Pressable>
+            )}
+            <View style={styles.headerSpacer} />
+            <Pressable onPress={handleClose} style={styles.closeButton}>
+              <Text style={styles.closeIcon}>{'\u2715'}</Text>
             </Pressable>
-          ))}
-          <Pressable
-            style={[styles.button, styles.primary, submitting && styles.buttonDisabled]}
-            accessibilityRole="button"
-            onPress={enqueue}
-            disabled={submitting}
-          >
-            <Text style={styles.primaryText}>{submitting ? 'Adding…' : 'Enqueue tasks'}</Text>
-          </Pressable>
-        </View>
-      ) : null}
-      <Paragraph style={styles.footer}>
-        <Strong>Privacy note:</Strong> Speech capture happens locally when supported; browser users
-        can always fall back to keyboard input.
-      </Paragraph>
-    </View>
+          </View>
+
+          {step === 'input' ? (
+            <View style={styles.content}>
+              {mode === 'voice' && speechAdapter?.supported ? (
+                <View style={styles.voiceContainer}>
+                  <Text style={styles.listeningText}>
+                    {speechState === 'transcribing'
+                      ? 'Transcribing...'
+                      : speechState === 'recording'
+                        ? 'Recording...'
+                        : 'Tap to speak'}
+                  </Text>
+                  <Pressable
+                    style={[styles.micButton, speechState !== 'idle' && styles.micActive]}
+                    onPress={speechState === 'recording' ? speechAdapter.stop : startTranscription}
+                    disabled={speechState === 'transcribing'}
+                  >
+                    {speechState === 'transcribing' ? (
+                      <ActivityIndicator color={theme.accent} size="small" />
+                    ) : (
+                      <View style={styles.micInner} />
+                    )}
+                  </Pressable>
+                  <Text style={styles.transcript}>{input || 'Say something...'}</Text>
+                  <Pressable onPress={() => setMode('text')} disabled={speechState !== 'idle'}>
+                    <Text
+                      style={[
+                        styles.switchMode,
+                        speechState !== 'idle' && styles.switchModeDisabled,
+                      ]}
+                    >
+                      Switch to keyboard
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.textContainer}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={input}
+                    onChangeText={setInput}
+                    placeholder="What needs to be done?"
+                    placeholderTextColor={theme.textMuted}
+                    multiline
+                    autoFocus
+                  />
+                  {speechAdapter?.supported && (
+                    <Pressable onPress={() => setMode('voice')}>
+                      <Text style={styles.switchMode}>Switch to voice</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+
+              {error && <Text style={styles.errorText}>{error}</Text>}
+
+              <View style={styles.optionsContainer}>
+                <Pressable
+                  style={[styles.optionButton, !input.trim() && styles.optionDisabled]}
+                  onPress={handleSplit}
+                  disabled={!input.trim() || submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={theme.text} size="small" />
+                  ) : (
+                    <Text style={styles.optionText}>{'\u2728'} Split</Text>
+                  )}
+                </Pressable>
+
+                <View style={styles.row}>
+                  <Pressable
+                    style={[
+                      styles.optionButton,
+                      styles.aiButton,
+                      !input.trim() && styles.optionDisabled,
+                    ]}
+                    onPress={() => handleAddTasks('ai')}
+                    disabled={!input.trim() || submitting}
+                  >
+                    <Text style={styles.optionText}>AI Decide</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.optionButton, !input.trim() && styles.optionDisabled]}
+                    onPress={() => handleAddTasks('top')}
+                    disabled={!input.trim() || submitting}
+                  >
+                    <Text style={styles.optionText}>Top</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.optionButton, !input.trim() && styles.optionDisabled]}
+                    onPress={() => handleAddTasks('bottom')}
+                    disabled={!input.trim() || submitting}
+                  >
+                    <Text style={styles.optionText}>Bottom</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.content}>
+              <Text style={styles.reviewTitle}>Review tasks</Text>
+              <Text style={styles.reviewSubtitle}>
+                {selectedCount} of {splitTasks.length} selected
+              </Text>
+
+              <ScrollView style={styles.taskList} showsVerticalScrollIndicator={false}>
+                {splitTasks.map((task, index) => (
+                  <Pressable
+                    key={index}
+                    style={[styles.taskItem, task.selected && styles.taskItemSelected]}
+                    onPress={() => toggleTask(index)}
+                  >
+                    <View style={[styles.checkbox, task.selected && styles.checkboxSelected]}>
+                      {task.selected && <Text style={styles.checkmark}>{'\u2713'}</Text>}
+                    </View>
+                    <View style={styles.taskContent}>
+                      <Text style={styles.taskTitle}>{task.title}</Text>
+                      {task.description && (
+                        <Text style={styles.taskDescription}>{task.description}</Text>
+                      )}
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {error && <Text style={styles.errorText}>{error}</Text>}
+
+              <View style={styles.optionsContainer}>
+                <View style={styles.row}>
+                  <Pressable
+                    style={[
+                      styles.optionButton,
+                      styles.aiButton,
+                      selectedCount === 0 && styles.optionDisabled,
+                    ]}
+                    onPress={() => handleAddTasks('ai')}
+                    disabled={selectedCount === 0 || submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color={theme.text} size="small" />
+                    ) : (
+                      <Text style={styles.optionText}>AI Decide</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.optionButton, selectedCount === 0 && styles.optionDisabled]}
+                    onPress={() => handleAddTasks('top')}
+                    disabled={selectedCount === 0 || submitting}
+                  >
+                    <Text style={styles.optionText}>Top</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.optionButton, selectedCount === 0 && styles.optionDisabled]}
+                    onPress={() => handleAddTasks('bottom')}
+                    disabled={selectedCount === 0 || submitting}
+                  >
+                    <Text style={styles.optionText}>Bottom</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+    </>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 10,
-    padding: 12,
-    backgroundColor: '#0b1021',
-    borderColor: '#111827',
-    borderWidth: 1,
-    borderRadius: 12,
-  },
-  header: {
-    gap: 4,
-  },
-  heading: {
-    fontSize: 18,
-  },
-  subhead: {
-    color: '#cbd5e1',
-  },
-  inputRow: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-    borderColor: '#1f2937',
-    borderWidth: 1,
-    borderRadius: 10,
-    minHeight: 80,
-    padding: 12,
-    color: '#e5e7eb',
-  },
-  micButton: {
-    minWidth: 92,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-    backgroundColor: '#111827',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  micButtonActive: {
-    backgroundColor: '#1f2937',
-    borderColor: '#6366f1',
-  },
-  micLabel: {
-    color: '#e5e7eb',
-    fontWeight: '700',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  button: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  primary: {
-    backgroundColor: '#6366f1',
-    borderColor: '#4f46e5',
-  },
-  secondary: {
-    backgroundColor: '#0f172a',
-    borderColor: '#1f2937',
-  },
-  buttonText: {
-    color: '#e5e7eb',
-    fontWeight: '600',
-  },
-  primaryText: {
-    color: '#0b1021',
-    fontWeight: '800',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  confirmation: {
-    marginTop: 8,
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
-    paddingTop: 8,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
-    paddingVertical: 4,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#1f2937',
-    backgroundColor: '#0f172a',
-  },
-  checkboxChecked: {
-    backgroundColor: '#22c55e',
-    borderColor: '#16a34a',
-  },
-  checkCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  checkTitle: {
-    color: '#e5e7eb',
-    fontWeight: '700',
-  },
-  checkDescription: {
-    color: '#cbd5e1',
-  },
-  summary: {
-    color: '#cbd5e1',
-  },
-  error: {
-    color: '#f97316',
-  },
-  footer: {
-    marginTop: 8,
-    color: '#94a3b8',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    fab: {
+      position: 'absolute',
+      bottom: 24,
+      right: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: theme.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 8,
+    },
+    fabIcon: {
+      fontSize: 32,
+      color: '#fff',
+      marginTop: -4,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      flexDirection: 'row',
+      padding: 16,
+      alignItems: 'center',
+    },
+    headerSpacer: {
+      flex: 1,
+    },
+    backButton: {
+      padding: 8,
+    },
+    backIcon: {
+      fontSize: 24,
+      color: theme.textMuted,
+    },
+    closeButton: {
+      padding: 8,
+    },
+    closeIcon: {
+      fontSize: 24,
+      color: theme.textMuted,
+    },
+    content: {
+      flex: 1,
+      padding: 24,
+      justifyContent: 'center',
+    },
+    voiceContainer: {
+      alignItems: 'center',
+      gap: 32,
+    },
+    listeningText: {
+      color: theme.textSecondary,
+      fontSize: 18,
+    },
+    micButton: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: theme.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    micActive: {
+      borderColor: theme.accent,
+      backgroundColor: `${theme.accent}15`,
+    },
+    micInner: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: theme.error,
+    },
+    transcript: {
+      color: theme.text,
+      fontSize: 24,
+      textAlign: 'center',
+      minHeight: 100,
+    },
+    switchMode: {
+      color: theme.accent,
+      fontSize: 16,
+      marginTop: 16,
+    },
+    switchModeDisabled: {
+      opacity: 0.5,
+    },
+    textContainer: {
+      flex: 1,
+      gap: 16,
+    },
+    textInput: {
+      fontSize: 24,
+      color: theme.text,
+      minHeight: 120,
+      textAlignVertical: 'top',
+    },
+    optionsContainer: {
+      marginTop: 'auto',
+      gap: 12,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    optionButton: {
+      flex: 1,
+      backgroundColor: theme.card,
+      padding: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    optionDisabled: {
+      opacity: 0.5,
+    },
+    aiButton: {
+      backgroundColor: theme.accent,
+      borderColor: theme.accent,
+    },
+    optionText: {
+      color: theme.text,
+      fontWeight: '600',
+    },
+    errorText: {
+      color: theme.error,
+      textAlign: 'center',
+      marginVertical: 8,
+    },
+    reviewTitle: {
+      color: theme.text,
+      fontSize: 24,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    reviewSubtitle: {
+      color: theme.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    taskList: {
+      flex: 1,
+      marginBottom: 16,
+    },
+    taskItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      padding: 16,
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginBottom: 12,
+      gap: 12,
+    },
+    taskItemSelected: {
+      borderColor: theme.accent,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: theme.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxSelected: {
+      backgroundColor: theme.accent,
+      borderColor: theme.accent,
+    },
+    checkmark: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    taskContent: {
+      flex: 1,
+      gap: 4,
+    },
+    taskTitle: {
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    taskDescription: {
+      color: theme.textSecondary,
+      fontSize: 14,
+    },
+  });

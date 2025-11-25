@@ -27,16 +27,9 @@
     "@types/react": "~19.1.12",
     "@types/react-dom": "~19.1.5",
     "@vitejs/plugin-react": "^5.1.1",
-    "eslint": "^8.57.0",
+    "eslint": "^9.20.0",
     "sharp": "^0.34.5",
     "typescript": "~5.9.2",
     "vite": "^5.4.9"
-  },
-  "eslintConfig": {
-    "extends": "@sevn/eslint-config",
-    "ignorePatterns": [
-      "node_modules",
-      "dist"
-    ]
   }
 }

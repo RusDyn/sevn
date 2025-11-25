@@ -6,8 +6,10 @@ const env = (() => {
 
   if (maybeProcessEnv) return maybeProcessEnv;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) return (import.meta as any).env;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env)
+    return (import.meta as any).env;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   return {};
 })();
 
@@ -18,7 +20,11 @@ export const SEVN_AUTH_STORAGE_KEY = 'sevn-auth';
 
 export const resolveSupabaseConfig = () =>
   SUPABASE_URL && SUPABASE_ANON_KEY
-    ? { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_ANON_KEY, authStorageKey: SEVN_AUTH_STORAGE_KEY }
+    ? {
+        supabaseUrl: SUPABASE_URL,
+        supabaseKey: SUPABASE_ANON_KEY,
+        authStorageKey: SEVN_AUTH_STORAGE_KEY,
+      }
     : null;
 
 export const getSupabaseEnv = () => ({

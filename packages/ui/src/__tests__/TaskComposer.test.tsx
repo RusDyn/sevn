@@ -54,8 +54,12 @@ describe('TaskComposer', () => {
     fireEvent.changeText(getByPlaceholderText(/describe/i), 'Ship a release');
     fireEvent.press(getByText('Add now'));
 
-    await waitFor(() => expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls.length).toBe(1));
-    expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls[0][0]).toEqual([{ title: 'Ship a release' }]);
+    await waitFor(() =>
+      expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls.length).toBe(1)
+    );
+    expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls[0][0]).toEqual([
+      { title: 'Ship a release' },
+    ]);
     expect(mockClient.tasks.create).not.toHaveBeenCalled();
     expect(analytics).toHaveBeenCalledWith(expect.objectContaining({ name: 'tasks_enqueued' }));
   });
@@ -63,7 +67,10 @@ describe('TaskComposer', () => {
   it('falls back to manual task creation with positions when enqueue fails', async () => {
     const analytics = jest.fn();
 
-    (mockClient.decomposition.enqueue as jest.Mock).mockResolvedValueOnce({ data: null, error: new Error('rpc_missing') });
+    (mockClient.decomposition.enqueue as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('rpc_missing'),
+    });
     (mockClient.tasks.list as jest.Mock).mockResolvedValueOnce({
       data: [
         {
