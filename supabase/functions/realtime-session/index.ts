@@ -1,13 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-type SessionResponse = {
-  client_secret: {
-    value: string;
-    expires_at: number;
-  };
-};
-
 const parseAllowedOrigins = (): string[] =>
   (Deno.env.get('ALLOWED_ORIGINS') ?? '')
     .split(',')
@@ -19,14 +12,36 @@ const allowedOrigins = parseAllowedOrigins();
 const isOriginAllowed = (origin: string | null): boolean =>
   allowedOrigins.length === 0 || origin === null || allowedOrigins.includes(origin);
 
-const buildCorsHeaders = (origin: string | null) => ({
-  'Content-Type': 'application/json',
+const buildCorsHeaders = (origin: string | null, contentType = 'application/json') => ({
+  'Content-Type': contentType,
   'Access-Control-Allow-Origin': isOriginAllowed(origin)
     ? origin ?? allowedOrigins[0] ?? '*'
     : 'null',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 });
+
+// Session configuration for transcription-only mode
+const sessionConfig = {
+  type: 'transcription',
+  model: 'gpt-4o-transcribe',
+  audio: {
+    input: {
+      format: { type: 'audio/pcm', rate: 24000 },
+      noise_reduction: { type: 'near_field' },
+      transcription: {
+        model: 'gpt-4o-transcribe',
+        language: 'en',
+      },
+      turn_detection: {
+        type: 'server_vad',
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 500,
+      },
+    },
+  },
+};
 
 serve(async (req) => {
   const origin = req.headers.get('Origin');
@@ -94,44 +109,51 @@ serve(async (req) => {
   }
 
   try {
-    // Create ephemeral session token from OpenAI Realtime API
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
+    // Get the SDP offer from the client
+    const offerSdp = await req.text();
+
+    if (!offerSdp || !offerSdp.trim()) {
+      return new Response(JSON.stringify({ error: 'Missing SDP offer' }), {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
+    // Create multipart form with SDP and session config
+    const formData = new FormData();
+    formData.set('sdp', offerSdp);
+    formData.set('session', JSON.stringify(sessionConfig));
+
+    // Call OpenAI Realtime API unified interface
+    const response = await fetch('https://api.openai.com/v1/realtime/calls', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
         'OpenAI-Beta': 'realtime=v1',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o-realtime-preview-2024-12-17',
-        modalities: ['audio', 'text'],
-        instructions: 'You are a transcription assistant. Listen to audio and transcribe it accurately.',
-      }),
+      body: formData,
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI Realtime session creation failed', { status: response.status, error: errorText });
+      console.error('OpenAI Realtime call creation failed', {
+        status: response.status,
+        error: errorText,
+      });
       return new Response(JSON.stringify({ error: 'Failed to create realtime session' }), {
         status: 500,
         headers: corsHeaders,
       });
     }
 
-    const session: SessionResponse = await response.json();
+    // Return the answer SDP to the client
+    const answerSdp = await response.text();
 
-    console.info('realtime-session created', {
-      owner: user?.id,
-      expiresAt: session.client_secret.expires_at,
+    console.info('realtime-session created via WebRTC', { owner: user?.id });
+
+    return new Response(answerSdp, {
+      headers: buildCorsHeaders(origin, 'application/sdp'),
     });
-
-    return new Response(
-      JSON.stringify({
-        token: session.client_secret.value,
-        expiresAt: session.client_secret.expires_at,
-      }),
-      { headers: corsHeaders }
-    );
   } catch (error) {
     console.error('realtime-session failed', error);
     return new Response(JSON.stringify({ error: 'Failed to create session' }), {

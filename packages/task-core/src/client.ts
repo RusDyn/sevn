@@ -166,7 +166,12 @@ export const createTaskClient = ({
   const autoOrderTask = async (request: AutoOrderRequest) =>
     client.functions.invoke<AutoOrderResponse>('auto-order-task', { body: request });
 
-  const getRealtimeSession = async () => {
+  /**
+   * Creates a WebRTC realtime session by exchanging SDP offers.
+   * @param offerSdp - The SDP offer from the client's RTCPeerConnection
+   * @returns The SDP answer to set as remote description
+   */
+  const createRealtimeSession = async (offerSdp: string) => {
     const { data: sessionData } = await client.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     const authToken = accessToken ?? supabaseKey;
@@ -176,17 +181,18 @@ export const createTaskClient = ({
       headers: {
         apikey: supabaseKey,
         Authorization: `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/sdp',
       },
+      body: offerSdp,
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      return { data: null, error: new Error(errorData.error ?? 'Failed to get session') };
+      return { data: null, error: new Error(errorData.error ?? 'Failed to create session') };
     }
 
-    const data: { token: string; expiresAt: number } = await response.json();
-    return { data, error: null };
+    const answerSdp = await response.text();
+    return { data: answerSdp, error: null };
   };
 
   const enqueueDrafts = async (drafts: TaskDraft[], ownerId: string) => {
@@ -380,7 +386,7 @@ export const createTaskClient = ({
     },
     voice: {
       transcribe: transcribeAudio,
-      getRealtimeSession,
+      createRealtimeSession,
     },
     ai: {
       autoOrder: autoOrderTask,
