@@ -200,8 +200,9 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
 
       ws.onerror = () => {
         console.error('WebSocket error');
+        const onStateChangeHandler = stateRef.current.onStateChange;
         cleanup();
-        stateRef.current.onStateChange?.('idle');
+        onStateChangeHandler?.('idle');
       };
 
       ws.onclose = () => {
