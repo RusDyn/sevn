@@ -1,5 +1,5 @@
 import type { TaskRow } from '@sevn/task-core';
-import { ReactNode, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   type GestureResponderEvent,
   PanResponder,
@@ -14,9 +14,7 @@ import { announce, triggerHaptic } from './feedback';
 import { type Theme, useTheme } from '../theme';
 
 export type TaskCardProps = {
-  position: number;
   task: TaskRow;
-  accessory?: ReactNode;
   onComplete?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
   onDeprioritize?: (taskId: string) => void;
@@ -26,9 +24,7 @@ export type TaskCardProps = {
 const SWIPE_THRESHOLD = 52;
 
 export const TaskCard = ({
-  position,
   task,
-  accessory,
   onComplete,
   onDelete,
   onDeprioritize,
@@ -140,19 +136,11 @@ export const TaskCard = ({
         {...panResponder.panHandlers}
         style={[styles.card, animatedStyle]}
         accessibilityRole="button"
-        accessibilityLabel={`${task.title} at position ${position}`}
+        accessibilityLabel={task.title}
         accessibilityHint="Swipe right to complete, left to delete, down to deprioritize"
       >
-        <View style={styles.header}>
-          <Text style={styles.position}>#{position}</Text>
-          <Text style={styles.priority}>{task.priority.toUpperCase()}</Text>
-        </View>
         <Text style={styles.title}>{task.title}</Text>
         {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
-        <View style={styles.footer}>
-          <Text style={styles.state}>{task.state.replace('_', ' ')}</Text>
-          {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
-        </View>
       </Animated.View>
     </View>
   );
@@ -168,28 +156,6 @@ const createStyles = (theme: Theme) =>
       padding: 16,
       gap: 8,
     },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
-    position: {
-      color: theme.position,
-      fontWeight: '800',
-      fontSize: 16,
-    },
-    priority: {
-      color: theme.priority,
-      fontWeight: '700',
-      fontSize: 12,
-      letterSpacing: 1,
-    },
     title: {
       color: theme.text,
       fontWeight: '700',
@@ -198,41 +164,6 @@ const createStyles = (theme: Theme) =>
     description: {
       color: theme.textSecondary,
       fontSize: 14,
-    },
-    state: {
-      color: theme.state,
-      fontWeight: '600',
-    },
-    accessory: {
-      flex: 1,
-      alignItems: 'flex-end',
-    },
-    webContainer: {
-      gap: 8,
-    },
-    actions: {
-      flexDirection: 'row',
-      gap: 8,
-      justifyContent: 'space-between',
-    },
-    action: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 12,
-      alignItems: 'center',
-    },
-    actionLabel: {
-      color: theme.background,
-      fontWeight: '700',
-    },
-    complete: {
-      backgroundColor: theme.success,
-    },
-    deprioritize: {
-      backgroundColor: theme.warning,
-    },
-    delete: {
-      backgroundColor: theme.error,
     },
     gestureContainer: {
       // Ensure the container doesn't collapse
