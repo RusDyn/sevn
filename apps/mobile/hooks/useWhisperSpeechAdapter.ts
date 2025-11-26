@@ -18,6 +18,7 @@ type StreamingState = {
   onText: ((transcript: string) => void) | null;
   onStateChange: ((state: SpeechState) => void) | null;
   transcriptBuffer: string;
+  pendingTranscriptionResolve: (() => void) | null;
 };
 
 const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -94,6 +95,7 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     onText: null,
     onStateChange: null,
     transcriptBuffer: '',
+    pendingTranscriptionResolve: null,
   });
 
   const cleanup = useCallback(() => {
@@ -122,6 +124,7 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
       onText: null,
       onStateChange: null,
       transcriptBuffer: '',
+      pendingTranscriptionResolve: null,
     };
   }, []);
 
@@ -186,6 +189,10 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
             if (transcript) {
               stateRef.current.transcriptBuffer = transcript;
               stateRef.current.onText?.(transcript);
+              if (stateRef.current.pendingTranscriptionResolve) {
+                stateRef.current.pendingTranscriptionResolve();
+                stateRef.current.pendingTranscriptionResolve = null;
+              }
             }
           } else if (msg.type === 'input_audio_buffer.speech_started') {
             stateRef.current.onStateChange?.('recording');
@@ -303,6 +310,26 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
   const stopRecording = useCallback(async () => {
     const { ws, onStateChange, recording } = stateRef.current;
 
+    const waitForTranscriptionCompletion = async () => {
+      const state = stateRef.current;
+
+      // If transcription already arrived, don't wait any longer
+      if (state.transcriptBuffer) return;
+
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          state.pendingTranscriptionResolve = null;
+          resolve();
+        }, 5000);
+
+        state.pendingTranscriptionResolve = () => {
+          clearTimeout(timeout);
+          state.pendingTranscriptionResolve = null;
+          resolve();
+        };
+      });
+    };
+
     if (Platform.OS !== 'web' && recording && ws?.readyState === WebSocket.OPEN) {
       try {
         await recording.stopAndUnloadAsync();
@@ -347,7 +374,7 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
 
           ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
 
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await waitForTranscriptionCompletion();
         }
       } catch (error) {
         console.error('Failed to finalize native recording', error);
@@ -356,8 +383,7 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
       // Commit the audio buffer to finalize transcription
       ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
 
-      // Wait briefly for final transcription
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await waitForTranscriptionCompletion();
     }
 
     cleanup();
