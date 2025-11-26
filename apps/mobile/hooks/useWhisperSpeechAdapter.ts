@@ -147,12 +147,15 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
         };
 
         // 4. Create offer and wait for ICE gathering to complete
+        // Set up ICE gathering promise BEFORE setLocalDescription to avoid race condition
+        const iceGatheringPromise = waitForIceGathering(pc);
+
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
         // Wait for ICE gathering to complete before sending SDP
         // This ensures all ICE candidates are included in the offer
-        const sdpWithCandidates = await waitForIceGathering(pc);
+        const sdpWithCandidates = await iceGatheringPromise;
 
         if (!sdpWithCandidates) {
           throw new Error('Failed to gather ICE candidates');
@@ -210,24 +213,38 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
  * Wait for ICE gathering to complete and return the SDP with all candidates.
  * This is necessary because the initial offer SDP may not contain ICE candidates,
  * which are required for the WebRTC connection to work on most networks.
+ *
+ * IMPORTANT: Event handlers must be attached BEFORE setLocalDescription is called
+ * to avoid race conditions where ICE gathering completes synchronously.
  */
 function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 5000): Promise<string | null> {
   return new Promise((resolve) => {
-    // If already complete, return immediately
-    if (pc.iceGatheringState === 'complete') {
-      resolve(pc.localDescription?.sdp ?? null);
-      return;
-    }
+    // Set up event handlers immediately to catch any events that fire synchronously
+    // after setLocalDescription is called
 
-    const timeout = setTimeout(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let resolved = false;
+
+    const cleanup = () => {
+      if (resolved) return;
+      resolved = true;
+      pc.onicegatheringstatechange = null;
+      pc.onicecandidate = null;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+
+    timeout = setTimeout(() => {
       // Timeout - return whatever we have (may have partial candidates)
       console.warn('ICE gathering timeout, proceeding with partial candidates');
+      cleanup();
       resolve(pc.localDescription?.sdp ?? null);
     }, timeoutMs);
 
     pc.onicegatheringstatechange = () => {
       if (pc.iceGatheringState === 'complete') {
-        clearTimeout(timeout);
+        cleanup();
         resolve(pc.localDescription?.sdp ?? null);
       }
     };
@@ -236,10 +253,16 @@ function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 5000): Promise<s
     pc.onicecandidate = (event) => {
       if (event.candidate === null) {
         // null candidate means gathering is complete
-        clearTimeout(timeout);
+        cleanup();
         resolve(pc.localDescription?.sdp ?? null);
       }
     };
+
+    // Check if already complete (handles synchronous completion case)
+    if (pc.iceGatheringState === 'complete') {
+      cleanup();
+      resolve(pc.localDescription?.sdp ?? null);
+    }
   });
 }
 
@@ -248,24 +271,28 @@ function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 5000): Promise<s
  */
 function handleRealtimeEvent(msg: RealtimeEvent, state: StreamingState) {
   switch (msg.type) {
-    case 'conversation.item.input_audio_transcription.delta':
+    case 'conversation.item.input_audio_transcription.delta': {
       // Streaming delta - append to buffer for current item
-      if (msg.item_id !== state.currentItemId) {
+      const deltaMsg = msg as TranscriptionDeltaEvent;
+      if (deltaMsg.item_id !== state.currentItemId) {
         // New transcription item, reset buffer
-        state.currentItemId = msg.item_id;
-        state.transcriptBuffer = msg.delta ?? '';
+        state.currentItemId = deltaMsg.item_id;
+        state.transcriptBuffer = deltaMsg.delta ?? '';
       } else {
-        state.transcriptBuffer += msg.delta ?? '';
+        state.transcriptBuffer += deltaMsg.delta ?? '';
       }
       state.onText?.(state.transcriptBuffer);
       break;
+    }
 
-    case 'conversation.item.input_audio_transcription.completed':
+    case 'conversation.item.input_audio_transcription.completed': {
       // Final transcript for this item
-      state.transcriptBuffer = msg.transcript ?? '';
+      const completedMsg = msg as TranscriptionCompletedEvent;
+      state.transcriptBuffer = completedMsg.transcript ?? '';
       state.currentItemId = null;
       state.onText?.(state.transcriptBuffer);
       break;
+    }
 
     case 'input_audio_buffer.speech_started':
       state.onStateChange?.('recording');
@@ -280,7 +307,7 @@ function handleRealtimeEvent(msg: RealtimeEvent, state: StreamingState) {
       break;
 
     case 'error':
-      console.error('Realtime API error:', msg.error);
+      console.error('Realtime API error:', (msg as ErrorEvent).error);
       break;
 
     default:
@@ -292,21 +319,36 @@ function handleRealtimeEvent(msg: RealtimeEvent, state: StreamingState) {
 }
 
 // Type definitions for OpenAI Realtime API events
+type TranscriptionDeltaEvent = {
+  type: 'conversation.item.input_audio_transcription.delta';
+  event_id: string;
+  item_id: string;
+  content_index: number;
+  delta: string;
+};
+
+type TranscriptionCompletedEvent = {
+  type: 'conversation.item.input_audio_transcription.completed';
+  event_id: string;
+  item_id: string;
+  content_index: number;
+  transcript: string;
+};
+
+type ErrorEvent = {
+  type: 'error';
+  event_id: string;
+  error: {
+    type: string;
+    code: string;
+    message: string;
+    param?: string;
+  };
+};
+
 type RealtimeEvent =
-  | {
-      type: 'conversation.item.input_audio_transcription.delta';
-      event_id: string;
-      item_id: string;
-      content_index: number;
-      delta: string;
-    }
-  | {
-      type: 'conversation.item.input_audio_transcription.completed';
-      event_id: string;
-      item_id: string;
-      content_index: number;
-      transcript: string;
-    }
+  | TranscriptionDeltaEvent
+  | TranscriptionCompletedEvent
   | {
       type: 'input_audio_buffer.speech_started';
       event_id: string;
@@ -325,16 +367,7 @@ type RealtimeEvent =
       previous_item_id: string;
       item_id: string;
     }
-  | {
-      type: 'error';
-      event_id: string;
-      error: {
-        type: string;
-        code: string;
-        message: string;
-        param?: string;
-      };
-    }
+  | ErrorEvent
   | {
       type: string;
       [key: string]: unknown;
