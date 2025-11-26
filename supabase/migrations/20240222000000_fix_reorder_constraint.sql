@@ -1,7 +1,7 @@
 -- Fix duplicate key violations in queue reordering functions
 -- The issue: PostgreSQL checks unique constraints row-by-row during UPDATE,
 -- so when positions are shuffled, intermediate states can violate the constraint.
--- Solution: Use a two-phase update - first to negative positions, then to final values.
+-- Solution: Use a two-phase update - first shift positions to a high offset, then assign final values.
 
 -- Re-sequence all active tasks for an owner so positions are contiguous
 -- Fixed to avoid unique constraint violations during position shuffling
@@ -10,17 +10,24 @@ returns setof public.tasks
 language plpgsql
 set search_path = public
 as $$
+declare
+  v_offset int;
 begin
-  -- Phase 1: Move all positions to negative (temporary) values
-  update public.tasks
-  set position = -position
+  -- Phase 1: Move positions to a high positive offset to avoid unique constraint collisions
+  select coalesce(max(position), 0) + 1000000
+  into v_offset
+  from public.tasks
   where owner_id = p_owner
-    and state not in ('done', 'archived')
-    and position > 0;
+    and state not in ('done', 'archived');
+
+  update public.tasks
+  set position = position + v_offset
+  where owner_id = p_owner
+    and state not in ('done', 'archived');
 
   -- Phase 2: Assign final contiguous positions
   with ordered as (
-    select id, row_number() over(order by -position asc, created_at asc) as new_position
+    select id, row_number() over(order by position asc, created_at asc) as new_position
     from public.tasks
     where owner_id = p_owner
       and state not in ('done', 'archived')
@@ -50,6 +57,7 @@ as $$
 declare
   v_max_position int;
   v_target_exists boolean;
+  v_offset int;
 begin
   -- Check if target task exists in active tasks
   select exists(
@@ -64,12 +72,17 @@ begin
     return;
   end if;
 
-  -- Phase 1: Move all active positions to negative (temporary) values
-  update public.tasks
-  set position = -position
+  -- Phase 1: Move active positions to a high positive offset to avoid unique constraint collisions
+  select coalesce(max(position), 0) + 1000000
+  into v_offset
+  from public.tasks
   where owner_id = p_owner
-    and state not in ('done', 'archived')
-    and position > 0;
+    and state not in ('done', 'archived');
+
+  update public.tasks
+  set position = position + v_offset
+  where owner_id = p_owner
+    and state not in ('done', 'archived');
 
   -- Get max position count (excluding target)
   select count(*) - 1
@@ -83,8 +96,8 @@ begin
 
   -- Phase 2: Assign final positions
   with active_ordered as (
-    -- Get all active tasks ordered by their original position (now negative)
-    select id, row_number() over(order by -position asc, created_at asc) as rn
+    -- Get all active tasks ordered by their offset positions (preserves original order)
+    select id, row_number() over(order by position asc, created_at asc) as rn
     from public.tasks
     where owner_id = p_owner
       and state not in ('done', 'archived')
