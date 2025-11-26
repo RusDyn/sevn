@@ -141,16 +141,21 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
           }
         };
 
-        // 4. Create offer and exchange SDP with server
+        // 4. Create offer and wait for ICE gathering to complete
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        if (!offer.sdp) {
-          throw new Error('Failed to create SDP offer');
+        // Wait for ICE gathering to complete before sending SDP
+        // This ensures all ICE candidates are included in the offer
+        const sdpWithCandidates = await waitForIceGathering(pc);
+
+        if (!sdpWithCandidates) {
+          throw new Error('Failed to gather ICE candidates');
         }
 
         // Exchange SDP with server
-        const { data: answerSdp, error } = await client.voice.createRealtimeSession(offer.sdp);
+        const { data: answerSdp, error } =
+          await client.voice.createRealtimeSession(sdpWithCandidates);
 
         if (error || !answerSdp) {
           throw error ?? new Error('Failed to get SDP answer');
@@ -195,6 +200,43 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     [client, startRecording, stopRecording]
   );
 };
+
+/**
+ * Wait for ICE gathering to complete and return the SDP with all candidates.
+ * This is necessary because the initial offer SDP may not contain ICE candidates,
+ * which are required for the WebRTC connection to work on most networks.
+ */
+function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 5000): Promise<string | null> {
+  return new Promise((resolve) => {
+    // If already complete, return immediately
+    if (pc.iceGatheringState === 'complete') {
+      resolve(pc.localDescription?.sdp ?? null);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      // Timeout - return whatever we have (may have partial candidates)
+      console.warn('ICE gathering timeout, proceeding with partial candidates');
+      resolve(pc.localDescription?.sdp ?? null);
+    }, timeoutMs);
+
+    pc.onicegatheringstatechange = () => {
+      if (pc.iceGatheringState === 'complete') {
+        clearTimeout(timeout);
+        resolve(pc.localDescription?.sdp ?? null);
+      }
+    };
+
+    // Also listen for individual candidates as a fallback
+    pc.onicecandidate = (event) => {
+      if (event.candidate === null) {
+        // null candidate means gathering is complete
+        clearTimeout(timeout);
+        resolve(pc.localDescription?.sdp ?? null);
+      }
+    };
+  });
+}
 
 /**
  * Handle incoming events from the OpenAI Realtime API via data channel.
