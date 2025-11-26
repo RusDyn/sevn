@@ -155,7 +155,8 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
             JSON.stringify({
               type: 'session.update',
               session: {
-                modalities: ['text'],
+                // Enable both text output and audio input for streaming transcription
+                modalities: ['text', 'audio'],
                 input_audio_format: 'pcm16',
                 input_audio_transcription: {
                   model: 'whisper-1',
