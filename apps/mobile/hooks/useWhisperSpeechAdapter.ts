@@ -1,5 +1,5 @@
 import { type TaskClient } from '@sevn/task-core';
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 
@@ -17,6 +17,37 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     onText: null,
     onStateChange: null,
   });
+
+  const cleanup = useCallback(async () => {
+    const { recording, onStateChange } = stateRef.current;
+
+    if (recording) {
+      try {
+        const status = await recording.getStatusAsync();
+        if (status.isRecording) {
+          await recording.stopAndUnloadAsync();
+        }
+      } catch (error) {
+        console.warn('Failed to clean up recording', error);
+      }
+    }
+
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+    } catch (error) {
+      console.warn('Failed to reset audio mode after cleanup', error);
+    }
+
+    stateRef.current = {
+      recording: null,
+      onText: null,
+      onStateChange: null,
+    };
+
+    onStateChange?.('idle');
+  }, []);
 
   const requestPermissions = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -37,33 +68,40 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
 
       const hasPermission = await requestPermissions();
       if (!hasPermission) {
+        await cleanup();
         throw new Error('Microphone permission denied');
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
 
-      stateRef.current = {
-        recording,
-        onText,
-        onStateChange: onStateChange ?? null,
-      };
+        stateRef.current = {
+          recording,
+          onText,
+          onStateChange: onStateChange ?? null,
+        };
 
-      onStateChange?.('recording');
+        onStateChange?.('recording');
+      } catch (error) {
+        await cleanup();
+        throw error;
+      }
     },
-    [client, requestPermissions]
+    [client, cleanup, requestPermissions]
   );
 
   const stopRecording = useCallback(async () => {
     const { recording, onText, onStateChange } = stateRef.current;
 
     if (!recording) {
+      await cleanup();
       return;
     }
 
@@ -71,9 +109,6 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
       onStateChange?.('transcribing');
 
       await recording.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      });
 
       const uri = recording.getURI();
       if (!uri) {
@@ -96,14 +131,15 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
       console.error('Transcription error:', error);
       throw error;
     } finally {
-      stateRef.current = {
-        recording: null,
-        onText: null,
-        onStateChange: null,
-      };
-      onStateChange?.('idle');
+      await cleanup();
     }
-  }, [client]);
+  }, [cleanup, client]);
+
+  useEffect(() => {
+    return () => {
+      void cleanup();
+    };
+  }, [cleanup]);
 
   return useMemo(
     () => ({
