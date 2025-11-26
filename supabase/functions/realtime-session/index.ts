@@ -100,6 +100,7 @@ serve(async (req) => {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'OpenAI-Beta': 'realtime=v1',
       },
       body: JSON.stringify({
         model: 'gpt-4o-realtime-preview-2024-12-17',
