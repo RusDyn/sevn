@@ -22,13 +22,15 @@ const buildCorsHeaders = (origin: string | null, contentType = 'application/json
 });
 
 // Session configuration for transcription-only mode
+// Based on OpenAI docs: audio.input structure
 const sessionConfig = {
   type: 'transcription',
-  model: 'gpt-4o-transcribe',
   audio: {
     input: {
-      format: { type: 'audio/pcm', rate: 24000 },
-      noise_reduction: { type: 'near_field' },
+      format: {
+        type: 'audio/pcm',
+        rate: 24000,
+      },
       transcription: {
         model: 'gpt-4o-transcribe',
         language: 'en',
@@ -119,6 +121,9 @@ serve(async (req) => {
       });
     }
 
+    console.log('SDP offer received, length:', offerSdp.length);
+    console.log('Session config:', JSON.stringify(sessionConfig));
+
     // Create multipart form with SDP and session config
     const formData = new FormData();
     formData.set('sdp', offerSdp);
@@ -129,7 +134,6 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'OpenAI-Beta': 'realtime=v1',
       },
       body: formData,
     });
@@ -138,9 +142,11 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('OpenAI Realtime call creation failed', {
         status: response.status,
+        statusText: response.statusText,
         error: errorText,
+        headers: Object.fromEntries(response.headers.entries()),
       });
-      return new Response(JSON.stringify({ error: 'Failed to create realtime session' }), {
+      return new Response(JSON.stringify({ error: 'Failed to create realtime session', details: errorText }), {
         status: 500,
         headers: corsHeaders,
       });

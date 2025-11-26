@@ -4,16 +4,25 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { TaskComposer } from '../task-queue/TaskComposer';
 
 describe('TaskComposer', () => {
+  const mockAddTasks = jest.fn().mockResolvedValue({
+    data: { tasks: [{ id: '1', title: 'Test task', position: 1 }] },
+    error: null,
+  });
+
   const mockClient: TaskClient = {
     decomposition: {
-      generate: jest
-        .fn()
-        .mockResolvedValue({ data: { tasks: [{ title: 'Step one' }] }, error: null }),
-      enqueue: jest.fn().mockResolvedValue({ data: [{ id: '1' }], error: null } as any),
+      generate: jest.fn().mockResolvedValue({
+        data: { tasks: [{ title: 'Step one' }] },
+        error: null,
+      }),
+      enqueue: jest.fn().mockResolvedValue({ data: [{ id: '1' }], error: null }),
     },
     tasks: {
-      list: jest.fn().mockResolvedValue({ data: [], error: null } as any),
-      create: jest.fn().mockResolvedValue({ data: { id: 'task-1' }, error: null } as any),
+      list: jest.fn().mockResolvedValue({ data: [], error: null }),
+      reorder: jest.fn().mockResolvedValue({ data: null, error: null }),
+    },
+    ai: {
+      addTasks: mockAddTasks,
     },
   } as unknown as TaskClient;
 
@@ -21,93 +30,134 @@ describe('TaskComposer', () => {
     jest.clearAllMocks();
   });
 
-  it('decomposes tasks and enqueues the confirmed checklist', async () => {
-    const analytics = jest.fn();
-
+  it('opens modal and shows input field', async () => {
     const { getByText, getByPlaceholderText } = render(
-      <TaskComposer client={mockClient} ownerId="user-1" analytics={analytics} />
+      <TaskComposer client={mockClient} ownerId="user-1" />
     );
 
-    fireEvent.changeText(getByPlaceholderText(/describe/i), 'Ship a release');
-    fireEvent.press(getByText('Plan tasks'));
+    // Click the FAB button
+    fireEvent.press(getByText('+'));
 
-    await waitFor(() => getByText('Confirm the checklist'));
-
-    fireEvent.press(getByText('Enqueue tasks'));
-
-    await waitFor(() =>
-      expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls.length).toBe(1)
-    );
-    expect(analytics).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'decomposition_ready' })
-    );
-    expect(analytics).toHaveBeenCalledWith(expect.objectContaining({ name: 'tasks_enqueued' }));
-  });
-
-  it('enqueues a single task when adding now', async () => {
-    const analytics = jest.fn();
-
-    const { getByText, getByPlaceholderText } = render(
-      <TaskComposer client={mockClient} ownerId="user-1" analytics={analytics} />
-    );
-
-    fireEvent.changeText(getByPlaceholderText(/describe/i), 'Ship a release');
-    fireEvent.press(getByText('Add now'));
-
-    await waitFor(() =>
-      expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls.length).toBe(1)
-    );
-    expect((mockClient.decomposition.enqueue as jest.Mock).mock.calls[0][0]).toEqual([
-      { title: 'Ship a release' },
-    ]);
-    expect(mockClient.tasks.create).not.toHaveBeenCalled();
-    expect(analytics).toHaveBeenCalledWith(expect.objectContaining({ name: 'tasks_enqueued' }));
-  });
-
-  it('falls back to manual task creation with positions when enqueue fails', async () => {
-    const analytics = jest.fn();
-
-    (mockClient.decomposition.enqueue as jest.Mock).mockResolvedValueOnce({
-      data: null,
-      error: new Error('rpc_missing'),
+    // Should show the text input (since we're in text mode after switching from voice)
+    await waitFor(() => {
+      expect(getByPlaceholderText(/What needs to be done/i)).toBeTruthy();
     });
-    (mockClient.tasks.list as jest.Mock).mockResolvedValueOnce({
-      data: [
-        {
-          id: 'existing-1',
-          title: 'Existing task',
-          description: null,
-          state: 'todo',
-          priority: 'medium',
-          position: 2,
-          due_at: null,
-          created_at: '2024-01-01',
-          updated_at: '2024-01-01',
-          owner_id: 'user-1',
-        },
-      ],
-      error: null,
-    } as any);
+  });
+
+  it('shows positioning buttons after entering text', async () => {
+    const { getByText, getByPlaceholderText } = render(
+      <TaskComposer client={mockClient} ownerId="user-1" />
+    );
+
+    // Open modal
+    fireEvent.press(getByText('+'));
+
+    // Enter text
+    await waitFor(() => getByPlaceholderText(/What needs to be done/i));
+    fireEvent.changeText(getByPlaceholderText(/What needs to be done/i), 'Test task');
+
+    // Should show positioning buttons
+    await waitFor(() => {
+      expect(getByText('Top')).toBeTruthy();
+      expect(getByText('Bottom')).toBeTruthy();
+      expect(getByText('AI Decide')).toBeTruthy();
+    });
+  });
+
+  it('adds task to bottom when pressing Bottom button', async () => {
+    const analytics = jest.fn();
 
     const { getByText, getByPlaceholderText } = render(
       <TaskComposer client={mockClient} ownerId="user-1" analytics={analytics} />
     );
 
-    fireEvent.changeText(getByPlaceholderText(/describe/i), 'Ship a release');
-    fireEvent.press(getByText('Add now'));
+    // Open modal
+    fireEvent.press(getByText('+'));
 
-    await waitFor(() => expect(mockClient.tasks.create).toHaveBeenCalled());
+    // Enter text
+    await waitFor(() => getByPlaceholderText(/What needs to be done/i));
+    fireEvent.changeText(getByPlaceholderText(/What needs to be done/i), 'Ship a release');
 
-    expect(mockClient.tasks.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Ship a release',
-        owner_id: 'user-1',
-        position: 2,
-        priority: 'medium',
-        state: 'todo',
-      })
-    );
-    expect(mockClient.tasks.list).toHaveBeenCalledWith('user-1');
+    // Press Bottom
+    fireEvent.press(getByText('Bottom'));
+
+    await waitFor(() => expect(mockAddTasks).toHaveBeenCalled());
+
+    expect(mockAddTasks).toHaveBeenCalledWith({
+      newTasks: [{ title: 'Ship a release', description: undefined }],
+      position: 'bottom',
+    });
     expect(analytics).toHaveBeenCalledWith(expect.objectContaining({ name: 'tasks_enqueued' }));
+  });
+
+  it('adds task to top when pressing Top button', async () => {
+    const { getByText, getByPlaceholderText } = render(
+      <TaskComposer client={mockClient} ownerId="user-1" />
+    );
+
+    // Open modal
+    fireEvent.press(getByText('+'));
+
+    // Enter text
+    await waitFor(() => getByPlaceholderText(/What needs to be done/i));
+    fireEvent.changeText(getByPlaceholderText(/What needs to be done/i), 'Urgent task');
+
+    // Press Top
+    fireEvent.press(getByText('Top'));
+
+    await waitFor(() => expect(mockAddTasks).toHaveBeenCalled());
+
+    expect(mockAddTasks).toHaveBeenCalledWith({
+      newTasks: [{ title: 'Urgent task', description: undefined }],
+      position: 'top',
+    });
+  });
+
+  it('uses AI ordering when pressing AI Decide button', async () => {
+    const { getByText, getByPlaceholderText } = render(
+      <TaskComposer client={mockClient} ownerId="user-1" />
+    );
+
+    // Open modal
+    fireEvent.press(getByText('+'));
+
+    // Enter text
+    await waitFor(() => getByPlaceholderText(/What needs to be done/i));
+    fireEvent.changeText(getByPlaceholderText(/What needs to be done/i), 'Some task');
+
+    // Press AI Decide
+    fireEvent.press(getByText('AI Decide'));
+
+    await waitFor(() => expect(mockAddTasks).toHaveBeenCalled());
+
+    expect(mockAddTasks).toHaveBeenCalledWith({
+      newTasks: [{ title: 'Some task', description: undefined }],
+      position: 'auto', // 'ai' maps to 'auto' in the API
+    });
+  });
+
+  it('splits tasks using decomposition and shows review screen', async () => {
+    const { getByText, getByPlaceholderText } = render(
+      <TaskComposer client={mockClient} ownerId="user-1" />
+    );
+
+    // Open modal
+    fireEvent.press(getByText('+'));
+
+    // Enter text
+    await waitFor(() => getByPlaceholderText(/What needs to be done/i));
+    fireEvent.changeText(
+      getByPlaceholderText(/What needs to be done/i),
+      'Build the entire feature'
+    );
+
+    // Press Split
+    fireEvent.press(getByText(/Split/));
+
+    // Should show review screen with decomposed tasks
+    await waitFor(() => {
+      expect(getByText('Review tasks')).toBeTruthy();
+      expect(getByText('Step one')).toBeTruthy();
+    });
   });
 });

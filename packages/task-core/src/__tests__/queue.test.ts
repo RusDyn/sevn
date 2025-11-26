@@ -13,8 +13,7 @@ const buildTasks = (count: number) =>
     position: index + 1,
   }));
 
-const buildQueueTask = (id: string, position: number, state: string = 'todo') =>
-  ({ id, position, state }) as any;
+const buildQueueTask = (id: string, position: number) => ({ id, position }) as any;
 
 describe('queue helpers', () => {
   it('normalizes queue positions with gaps', () => {
@@ -54,7 +53,7 @@ describe('queue helpers', () => {
 
   it('derives a visible window even when fewer tasks exist', () => {
     const tasks = deriveVisibleQueue(
-      [buildQueueTask('a', 2), buildQueueTask('b', 1, 'in_progress')] as any,
+      [buildQueueTask('a', 2), buildQueueTask('b', 1)] as any,
       QUEUE_WINDOW_SIZE
     );
 
@@ -71,7 +70,7 @@ describe('queue helpers', () => {
 
     const afterDelete = reduceQueueChange(initialQueue as any, {
       eventType: 'DELETE',
-      old: { id: 'task-1', state: 'todo' } as any,
+      old: { id: 'task-1' } as any,
     });
 
     const visibleQueue = deriveVisibleQueue(afterDelete as any);
@@ -89,12 +88,12 @@ describe('queue helpers', () => {
 
     const afterFirstUpdate = reduceQueueChange(base as any, {
       eventType: 'UPDATE',
-      new: { id: 'task-3', position: 10, state: 'todo' } as any,
+      new: { id: 'task-3', position: 10 } as any,
     });
 
     const afterSecondUpdate = reduceQueueChange(afterFirstUpdate as any, {
       eventType: 'UPDATE',
-      new: { id: 'task-3', position: 2, state: 'todo' } as any,
+      new: { id: 'task-3', position: 2 } as any,
     });
 
     const visibleQueue = deriveVisibleQueue(afterSecondUpdate as any);

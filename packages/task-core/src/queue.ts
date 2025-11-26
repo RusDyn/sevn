@@ -10,7 +10,8 @@ export type QueueChangePayload = {
 
 export const QUEUE_WINDOW_SIZE = 7;
 
-export const isQueueTask = (task: TaskRow) => task.state !== 'done' && task.state !== 'archived';
+// All tasks in the database are active (no state column)
+export const isQueueTask = (_task: TaskRow) => true;
 
 const sortByPosition = (tasks: PositionedTask[]): PositionedTask[] =>
   [...tasks].sort((a, b) => a.position - b.position);

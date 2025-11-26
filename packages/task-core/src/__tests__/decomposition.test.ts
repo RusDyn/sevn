@@ -7,10 +7,7 @@ describe('task decomposition helpers', () => {
       id: 'task-a',
       title: 'Initial task',
       description: null,
-      state: 'todo',
-      priority: 'medium',
       position: 1,
-      due_at: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
       owner_id: 'owner-1',
@@ -19,10 +16,7 @@ describe('task decomposition helpers', () => {
       id: 'task-b',
       title: 'Blocked task',
       description: 'waiting',
-      state: 'blocked',
-      priority: 'high',
       position: 3,
-      due_at: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
       owner_id: 'owner-1',
@@ -35,15 +29,12 @@ describe('task decomposition helpers', () => {
     expect(sanitizeDraft(draft)).toEqual({
       title: 'Ship release',
       description: null,
-      priority: 'medium',
-      state: 'todo',
-      due_at: null,
     });
   });
 
   it('appends drafts to the end of the active queue with normalized positions', () => {
     const drafts: TaskDraft[] = [
-      { title: 'Gather requirements', priority: 'high' },
+      { title: 'Gather requirements' },
       { title: 'Draft spec', description: 'Outline the happy path' },
     ];
 
@@ -52,7 +43,7 @@ describe('task decomposition helpers', () => {
     expect(inserts.map((task) => task.position)).toEqual([3, 4]);
     expect(inserts.every((task) => task.owner_id === 'owner-1')).toBe(true);
     expect(inserts[0]).toEqual(
-      expect.objectContaining({ title: 'Gather requirements', priority: 'high', state: 'todo' })
+      expect.objectContaining({ title: 'Gather requirements' })
     );
   });
 

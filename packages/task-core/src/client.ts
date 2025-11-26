@@ -3,8 +3,8 @@ import { SEVN_AUTH_STORAGE_KEY } from './config';
 
 import { applyPositionsToDrafts } from './decomposition';
 import type {
-  AutoOrderRequest,
-  AutoOrderResponse,
+  AddTasksRequest,
+  AddTasksResponse,
   Database,
   QueueMove,
   TaskDecompositionRequest,
@@ -99,26 +99,38 @@ export const createTaskClient = ({
     return (data as Pick<TaskRow, 'owner_id'>).owner_id;
   };
 
-  const deleteTask = async (id: string, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'delete_task_and_resequence',
-      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => deleteAndResequence(id, scope)
-    );
+  const deleteTask = async (id: string) => {
+    const { error } = await client.from('tasks').delete().eq('id', id);
+    return { data: null, error };
+  };
 
-  const completeTask = async (id: string, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'complete_task_and_resequence',
-      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => completeAndResequence(id, scope)
-    );
+  // Complete = delete (minimalist philosophy: done tasks disappear)
+  const completeTask = async (id: string) => {
+    const { error } = await client.from('tasks').delete().eq('id', id);
+    return { data: null, error };
+  };
 
-  const deprioritizeTask = async (id: string, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'deprioritize_task_to_bottom',
-      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => deprioritizeWithoutRpc(id, scope)
-    );
+  const deprioritizeTask = async (id: string, scope: { ownerId: string }) => {
+    // Get max position for this owner
+    const { data: maxRow } = await client
+      .from('tasks')
+      .select('position')
+      .eq('owner_id', scope.ownerId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .single();
+
+    const maxPosition = maxRow?.position ?? 0;
+
+    // Update task to be at the end
+    const { error } = await client
+      .from('tasks')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ position: maxPosition + 1 } as any)
+      .eq('id', id);
+
+    return { data: null, error };
+  };
 
   const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
     withQueueRpcFallback(
@@ -163,8 +175,8 @@ export const createTaskClient = ({
     return { data, error: null };
   };
 
-  const autoOrderTask = async (request: AutoOrderRequest) =>
-    client.functions.invoke<AutoOrderResponse>('auto-order-task', { body: request });
+  const addTasks = async (request: AddTasksRequest) =>
+    client.functions.invoke<AddTasksResponse>('add-tasks', { body: request });
 
   /**
    * Creates a WebRTC realtime session by exchanging SDP offers.
@@ -260,77 +272,8 @@ export const createTaskClient = ({
       .from('tasks')
       .select('*')
       .eq('owner_id', ownerId)
-      .neq('state', 'done')
-      .neq('state', 'archived')
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
-
-  const resequenceActiveTasks = async (ownerId: string) => {
-    const { data: active, error } = await fetchActiveTasks(ownerId);
-
-    if (error || !active) {
-      return { data: null, error };
-    }
-
-    await Promise.all(
-      active.map((task, index) =>
-        client
-          .from('tasks')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .update({ position: index + 1 } as any)
-          .eq('id', (task as TaskRow).id)
-      )
-    );
-
-    return fetchActiveTasks(ownerId);
-  };
-
-  const deleteAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(taskId, scope);
-
-    const { error } = await client.from('tasks').delete().eq('id', taskId);
-    if (error) {
-      return { data: null, error };
-    }
-
-    return resequenceActiveTasks(ownerId);
-  };
-
-  const completeAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(taskId, scope);
-
-    const { error } = await client
-      .from('tasks')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ state: 'done' } as any)
-      .eq('id', taskId);
-    if (error) {
-      return { data: null, error };
-    }
-
-    return resequenceActiveTasks(ownerId);
-  };
-
-  const deprioritizeWithoutRpc = async (taskId: string, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(taskId, scope);
-
-    const { data: active, error } = await fetchActiveTasks(ownerId);
-    if (error || !active) {
-      return { data: null, error };
-    }
-
-    const lastPosition = active.length + 1;
-    const { error: updateError } = await client
-      .from('tasks')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ position: lastPosition } as any)
-      .eq('id', taskId);
-    if (updateError) {
-      return { data: null, error: updateError };
-    }
-
-    return resequenceActiveTasks(ownerId);
-  };
 
   const reorderWithoutRpc = async (move: QueueMove, scope?: { ownerId?: string }) => {
     const ownerId = await resolveOwnerId(move.taskId, scope);
@@ -389,7 +332,7 @@ export const createTaskClient = ({
       createRealtimeSession,
     },
     ai: {
-      autoOrder: autoOrderTask,
+      addTasks,
     },
   };
 };
