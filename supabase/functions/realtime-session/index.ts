@@ -129,6 +129,7 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        'OpenAI-Beta': 'realtime=v1',
       },
       body: formData,
     });
