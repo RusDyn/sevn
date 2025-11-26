@@ -166,6 +166,29 @@ export const createTaskClient = ({
   const autoOrderTask = async (request: AutoOrderRequest) =>
     client.functions.invoke<AutoOrderResponse>('auto-order-task', { body: request });
 
+  const getRealtimeSession = async () => {
+    const { data: sessionData } = await client.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    const authToken = accessToken ?? supabaseKey;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/realtime-session`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { data: null, error: new Error(errorData.error ?? 'Failed to get session') };
+    }
+
+    const data: { token: string; expiresAt: number } = await response.json();
+    return { data, error: null };
+  };
+
   const enqueueDrafts = async (drafts: TaskDraft[], ownerId: string) => {
     let attempt = 0;
     let lastError: PostgrestError | null = null;
@@ -357,6 +380,7 @@ export const createTaskClient = ({
     },
     voice: {
       transcribe: transcribeAudio,
+      getRealtimeSession,
     },
     ai: {
       autoOrder: autoOrderTask,

@@ -153,6 +153,9 @@ importers:
       react-native:
         specifier: 0.81.5
         version: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0)
+      react-native-audio-api:
+        specifier: ^0.10.1
+        version: 0.10.1(react-native-worklets@0.5.2(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0)
       react-native-gesture-handler:
         specifier: ~2.29.1
         version: 2.29.1(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0)
@@ -4794,6 +4797,17 @@ packages:
 
   react-is@19.1.1:
     resolution: {integrity: sha512-tr41fA15Vn8p4X9ntI+yCyeGSf1TlYaY5vlTZfQmeLBrFo3psOPX6HhTDnFNL9uj3EhP0KAQ80cugCl4b4BERA==}
+
+  react-native-audio-api@0.10.1:
+    resolution: {integrity: sha512-DjniYYOBpdTNr09q5mJN8Vqcghd3uj17LWxvj956waLaFXn2kmiaGURYyDXA7m/lKcVGWnSsFl+x4Igy4yLYXQ==}
+    hasBin: true
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+      react-native-worklets: '>= 0.6.0'
+    peerDependenciesMeta:
+      react-native-worklets:
+        optional: true
 
   react-native-gesture-handler@2.29.1:
     resolution: {integrity: sha512-du3qmv0e3Sm7qsd9SfmHps+AggLiylcBBQ8ztz7WUtd8ZjKs5V3kekAbi9R2W9bRLSg47Ntp4GGMYZOhikQdZA==}
@@ -11355,6 +11369,13 @@ snapshots:
   react-is@18.3.1: {}
 
   react-is@19.1.1: {}
+
+  react-native-audio-api@0.10.1(react-native-worklets@0.5.2(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0)
+    optionalDependencies:
+      react-native-worklets: 0.5.2(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0)
 
   react-native-gesture-handler@2.29.1(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.13)(react@19.1.0))(react@19.1.0):
     dependencies:
