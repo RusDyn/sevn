@@ -1,5 +1,5 @@
 import { type TaskClient } from '@sevn/task-core';
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { AudioContext } from 'react-native-audio-api';
 import { Audio } from 'expo-av';
@@ -214,7 +214,9 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
       };
 
       ws.onclose = () => {
-        stateRef.current.onStateChange?.('idle');
+        const onStateChangeHandler = stateRef.current.onStateChange;
+        cleanup();
+        onStateChangeHandler?.('idle');
       };
 
       // Native runtimes do not implement navigator.mediaDevices; use expo-av recording instead
@@ -388,6 +390,13 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
 
     cleanup();
     onStateChange?.('idle');
+  }, [cleanup]);
+
+  // Cleanup on unmount to ensure recording resources are released
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
   }, [cleanup]);
 
   return useMemo(
