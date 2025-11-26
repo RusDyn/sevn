@@ -85,8 +85,13 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
       state.currentItemId = null;
 
       try {
-        // 1. Create peer connection
-        const pc = new RTCPeerConnection();
+        // 1. Create peer connection with ICE servers for NAT traversal
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ],
+        });
         state.pc = pc;
 
         // 2. Get microphone access
