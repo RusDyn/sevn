@@ -1,5 +1,5 @@
 import { type TaskClient } from '@sevn/task-core';
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import type { SpeechAdapter, SpeechState } from '@sevn/ui';
@@ -127,7 +127,9 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
 
         dc.onclose = () => {
           console.log('WebRTC data channel closed');
-          state.onStateChange?.('idle');
+          const onStateChangeHandler = stateRef.current.onStateChange;
+          cleanup();
+          onStateChangeHandler?.('idle');
         };
 
         // Handle connection state changes
@@ -174,6 +176,13 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     const { onStateChange } = stateRef.current;
     cleanup();
     onStateChange?.('idle');
+  }, [cleanup]);
+
+  // Cleanup on unmount to ensure recording resources are released
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
   }, [cleanup]);
 
   return useMemo(
