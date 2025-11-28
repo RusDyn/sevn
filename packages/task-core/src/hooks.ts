@@ -308,10 +308,10 @@ export const useRealtimeTaskQueue = (
 
       return optimisticUpdate(
         (tasks) => tasks.filter((task) => task.id !== taskId),
-        () => client.tasks.complete(taskId, { ownerId })
+        () => client.tasks.complete(taskId)
       );
     },
-    [client, optimisticUpdate, ownerId]
+    [client, optimisticUpdate]
   );
 
   const deleteTask = useCallback(
@@ -320,10 +320,10 @@ export const useRealtimeTaskQueue = (
 
       return optimisticUpdate(
         (tasks) => tasks.filter((task) => task.id !== taskId),
-        () => client.tasks.remove(taskId, { ownerId })
+        () => client.tasks.remove(taskId)
       );
     },
-    [client, optimisticUpdate, ownerId]
+    [client, optimisticUpdate]
   );
 
   const deprioritizeTask = useCallback(

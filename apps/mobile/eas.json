@@ -18,7 +18,9 @@
     },
     "development": {
       "extends": "monorepo",
+      "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "android": {
         "buildType": "apk"
       }
@@ -26,6 +28,7 @@
     "production": {
       "extends": "monorepo",
       "distribution": "store",
+      "environment": "production",
       "android": {
         "buildType": "app-bundle"
       }
