@@ -4,18 +4,28 @@ import { Platform } from 'react-native';
 
 import type { SpeechAdapter, SpeechState } from '@sevn/ui';
 
-// Platform-specific WebRTC imports
-let RTCPeerConnection: typeof globalThis.RTCPeerConnection;
-let mediaDevices: MediaDevices;
+// Platform-specific WebRTC imports - lazy initialized to avoid module load failures
+let RTCPeerConnection: typeof globalThis.RTCPeerConnection | undefined;
+let mediaDevices: MediaDevices | undefined;
+let webrtcInitialized = false;
 
-if (Platform.OS === 'web') {
-  RTCPeerConnection = globalThis.RTCPeerConnection;
-  mediaDevices = navigator.mediaDevices;
-} else {
-  // React Native WebRTC - imported dynamically to avoid web bundling issues
-  const RNWebRTC = require('react-native-webrtc');
-  RTCPeerConnection = RNWebRTC.RTCPeerConnection;
-  mediaDevices = RNWebRTC.mediaDevices;
+function initWebRTC() {
+  if (webrtcInitialized) return;
+  webrtcInitialized = true;
+
+  if (Platform.OS === 'web') {
+    RTCPeerConnection = globalThis.RTCPeerConnection;
+    mediaDevices = navigator.mediaDevices;
+  } else {
+    // React Native WebRTC - imported dynamically to avoid web bundling issues
+    try {
+      const RNWebRTC = require('react-native-webrtc');
+      RTCPeerConnection = RNWebRTC.RTCPeerConnection;
+      mediaDevices = RNWebRTC.mediaDevices;
+    } catch (e) {
+      console.warn('react-native-webrtc not available:', e);
+    }
+  }
 }
 
 type StreamingState = {
@@ -38,6 +48,9 @@ type StreamingState = {
  * - Server-side VAD (Voice Activity Detection)
  */
 export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapter => {
+  // Initialize WebRTC on first use
+  initWebRTC();
+
   const stateRef = useRef<StreamingState>({
     pc: null,
     dataChannel: null,
@@ -76,6 +89,10 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
     async (onText: (transcript: string) => void, onStateChange?: (state: SpeechState) => void) => {
       if (!client) {
         throw new Error('Client not available');
+      }
+
+      if (!RTCPeerConnection || !mediaDevices) {
+        throw new Error('WebRTC not available on this platform');
       }
 
       const state = stateRef.current;
@@ -200,7 +217,7 @@ export const useWhisperSpeechAdapter = (client: TaskClient | null): SpeechAdapte
 
   return useMemo(
     () => ({
-      supported: client !== null,
+      supported: client !== null && RTCPeerConnection !== undefined && mediaDevices !== undefined,
       label: 'Record',
       start: startRecording,
       stop: stopRecording,

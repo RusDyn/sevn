@@ -26,6 +26,9 @@ config.transformer = {
 config.resolver = {
   ...config.resolver,
   unstable_conditionNames: ['browser', 'require', 'react-native'],
+  // Disable strict package exports checking to allow react-native-webrtc's
+  // import of "event-target-shim/index" (the package only exports "." not "./index")
+  unstable_enablePackageExports: false,
 };
 
 module.exports = config;

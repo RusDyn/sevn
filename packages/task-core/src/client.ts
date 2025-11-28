@@ -65,21 +65,10 @@ export const createTaskClient = ({
   const getTask = (id: string) => client.from('tasks').select('*').eq('id', id).single();
 
   const createTask = (payload: TaskInsert) =>
-    client
-      .from('tasks')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(payload as any)
-      .select()
-      .single();
+    client.from('tasks').insert(payload).select().single();
 
   const updateTask = (id: string, payload: TaskUpdate) =>
-    client
-      .from('tasks')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update(payload as any)
-      .eq('id', id)
-      .select()
-      .single();
+    client.from('tasks').update(payload).eq('id', id).select().single();
 
   const resolveOwnerId = async (taskId: string, scope?: { ownerId?: string }) => {
     if (scope?.ownerId) {
@@ -99,37 +88,51 @@ export const createTaskClient = ({
     return (data as Pick<TaskRow, 'owner_id'>).owner_id;
   };
 
-  const deleteTask = async (id: string, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'delete_task_and_resequence',
-      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => deleteAndResequence(id, scope)
+  const deleteTask = async (id: string) => {
+    const { error } = await client.from('tasks').delete().eq('id', id);
+    return { data: null, error };
+  };
+
+  const completeTask = async (id: string) => {
+    const { error } = await client.from('tasks').delete().eq('id', id);
+    return { data: null, error };
+  };
+
+  const deprioritizeTask = async (id: string, scope?: { ownerId?: string }) => {
+    const ownerId = await resolveOwnerId(id, scope);
+    const { data: active } = await fetchActiveTasks(ownerId);
+    const maxPosition = active?.length ?? 0;
+
+    const update: TaskUpdate = { position: maxPosition + 1 };
+    const { error } = await client.from('tasks').update(update).eq('id', id);
+    return { data: null, error };
+  };
+
+  const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) => {
+    const ownerId = await resolveOwnerId(move.taskId, scope);
+    const { data: active, error } = await fetchActiveTasks(ownerId);
+
+    if (error || !active) {
+      return { data: null, error };
+    }
+
+    const remaining = active.filter((task) => task.id !== move.taskId);
+    const destination = Math.min(Math.max(move.toIndex, 0), Math.max(remaining.length, 0));
+    const target = active.find((task) => task.id === move.taskId);
+
+    if (target) {
+      remaining.splice(destination, 0, target);
+    }
+
+    await Promise.all(
+      remaining.map((task, index) => {
+        const update: TaskUpdate = { position: index + 1 };
+        return client.from('tasks').update(update).eq('id', task.id);
+      })
     );
 
-  const completeTask = async (id: string, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'complete_task_and_resequence',
-      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => completeAndResequence(id, scope)
-    );
-
-  const deprioritizeTask = async (id: string, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'deprioritize_task_to_bottom',
-      { p_task_id: id, p_owner: await resolveOwnerId(id, scope) },
-      () => deprioritizeWithoutRpc(id, scope)
-    );
-
-  const reorderTask = async (move: QueueMove, scope?: { ownerId?: string }) =>
-    withQueueRpcFallback(
-      'reorder_task_queue',
-      {
-        p_task_id: move.taskId,
-        p_to_index: move.toIndex,
-        p_owner: await resolveOwnerId(move.taskId, scope),
-      },
-      () => reorderWithoutRpc(move, scope)
-    );
+    return { data: null, error: null };
+  };
 
   const decomposeTasks = async (input: TaskDecompositionRequest) =>
     client.functions.invoke<TaskDecompositionResponse>('decompose-tasks', { body: input });
@@ -212,11 +215,7 @@ export const createTaskClient = ({
         return { data: [], error: null } as const;
       }
 
-      const { data, error: insertError } = await client
-        .from('tasks')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .insert(inserts as any)
-        .select();
+      const { data, error: insertError } = await client.from('tasks').insert(inserts).select();
 
       if (!insertError) {
         return { data, error: null } as const;
@@ -238,23 +237,6 @@ export const createTaskClient = ({
     } as const;
   };
 
-  type RpcFunctionName = keyof Database['public']['Functions'];
-
-  const withQueueRpcFallback = async <Params extends Record<string, unknown>>(
-    fnName: RpcFunctionName,
-    params: Params,
-    fallback: () => Promise<{ data: TaskRow[] | null; error: unknown }>
-  ) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await client.rpc(fnName, params as any);
-
-    if (error && isMissingFunctionError(error)) {
-      return fallback();
-    }
-
-    return { data: (data as TaskRow[]) ?? null, error };
-  };
-
   const fetchActiveTasks = async (ownerId: string) =>
     client
       .from('tasks')
@@ -264,102 +246,6 @@ export const createTaskClient = ({
       .neq('state', 'archived')
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
-
-  const resequenceActiveTasks = async (ownerId: string) => {
-    const { data: active, error } = await fetchActiveTasks(ownerId);
-
-    if (error || !active) {
-      return { data: null, error };
-    }
-
-    await Promise.all(
-      active.map((task, index) =>
-        client
-          .from('tasks')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .update({ position: index + 1 } as any)
-          .eq('id', (task as TaskRow).id)
-      )
-    );
-
-    return fetchActiveTasks(ownerId);
-  };
-
-  const deleteAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(taskId, scope);
-
-    const { error } = await client.from('tasks').delete().eq('id', taskId);
-    if (error) {
-      return { data: null, error };
-    }
-
-    return resequenceActiveTasks(ownerId);
-  };
-
-  const completeAndResequence = async (taskId: string, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(taskId, scope);
-
-    const { error } = await client
-      .from('tasks')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ state: 'done' } as any)
-      .eq('id', taskId);
-    if (error) {
-      return { data: null, error };
-    }
-
-    return resequenceActiveTasks(ownerId);
-  };
-
-  const deprioritizeWithoutRpc = async (taskId: string, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(taskId, scope);
-
-    const { data: active, error } = await fetchActiveTasks(ownerId);
-    if (error || !active) {
-      return { data: null, error };
-    }
-
-    const lastPosition = active.length + 1;
-    const { error: updateError } = await client
-      .from('tasks')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ position: lastPosition } as any)
-      .eq('id', taskId);
-    if (updateError) {
-      return { data: null, error: updateError };
-    }
-
-    return resequenceActiveTasks(ownerId);
-  };
-
-  const reorderWithoutRpc = async (move: QueueMove, scope?: { ownerId?: string }) => {
-    const ownerId = await resolveOwnerId(move.taskId, scope);
-    const { data: active, error } = await fetchActiveTasks(ownerId);
-
-    if (error || !active) {
-      return { data: null, error };
-    }
-
-    const remaining = active.filter((task) => (task as TaskRow).id !== move.taskId);
-    const destination = Math.min(Math.max(move.toIndex, 0), Math.max(remaining.length, 0));
-    const target = active.find((task) => (task as TaskRow).id === move.taskId);
-
-    if (target) {
-      remaining.splice(destination, 0, target);
-    }
-
-    await Promise.all(
-      remaining.map((task, index) =>
-        client
-          .from('tasks')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .update({ position: index + 1 } as any)
-          .eq('id', (task as TaskRow).id)
-      )
-    );
-
-    return fetchActiveTasks(ownerId);
-  };
 
   return {
     client,
@@ -393,11 +279,5 @@ export const createTaskClient = ({
     },
   };
 };
-
-const isMissingFunctionError = (error: { message?: string }) =>
-  Boolean(
-    error.message?.toLowerCase().includes('function') &&
-      error.message?.toLowerCase().includes('does not exist')
-  );
 
 const isPositionConflictError = (error: PostgrestError) => error.code === '23505';
