@@ -3,7 +3,6 @@ import type {
   Tables,
   TablesInsert,
   TablesUpdate,
-  Enums,
 } from './database.types';
 
 // Re-export the generated Database type
@@ -13,8 +12,6 @@ export type Database = GeneratedDatabase;
 export type TaskRow = Tables<'tasks'>;
 export type TaskInsert = TablesInsert<'tasks'>;
 export type TaskUpdate = TablesUpdate<'tasks'>;
-export type TaskState = Enums<'task_state'>;
-export type TaskPriority = Enums<'task_priority'>;
 
 export type TaskTable = {
   Row: TaskRow;
@@ -22,7 +19,7 @@ export type TaskTable = {
   Update: TaskUpdate;
 };
 
-export type TaskSortKey = 'position' | 'created_at' | 'priority';
+export type TaskSortKey = 'position' | 'created_at';
 
 export type QueueMove = {
   taskId: string;
@@ -32,14 +29,10 @@ export type QueueMove = {
 export type TaskDraft = {
   title: string;
   description?: string | null;
-  priority?: TaskPriority;
-  state?: TaskState;
-  due_at?: string | null;
 };
 
 export type TaskDecompositionRequest = {
-  prompt: string;
-  ownerId?: string;
+  text: string;
   timezone?: string;
   desiredCount?: number;
 };
@@ -55,25 +48,21 @@ export type TranscriptionResponse = {
   duration?: number;
 };
 
-export type AutoOrderRequest = {
-  newTask: {
+export type AddTasksRequest = {
+  newTasks: Array<{
     title: string;
     description?: string | null;
-    priority?: string;
-  };
-  existingTasks: Array<{
+  }>;
+  position: 'auto' | 'top' | 'bottom';
+};
+
+export type AddTasksResponse = {
+  tasks: Array<{
     id: string;
     title: string;
     description?: string | null;
-    priority: string;
     position: number;
   }>;
-  ownerId?: string;
-};
-
-export type AutoOrderResponse = {
-  position: number;
-  reasoning?: string;
 };
 
 export type TaskAnalyticsEventName =

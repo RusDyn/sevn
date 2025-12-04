@@ -1,9 +1,4 @@
-import {
-  type TaskAnalyticsEvent,
-  type TaskClient,
-  type TaskDraft,
-  type TaskRow,
-} from '@sevn/task-core';
+import { type TaskAnalyticsEvent, type TaskClient, type TaskDraft } from '@sevn/task-core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
@@ -25,7 +20,8 @@ export type SpeechAdapter = {
   label?: string;
   start: (
     onText: (transcript: string) => void,
-    onStateChange?: (state: SpeechState) => void
+    onStateChange?: (state: SpeechState) => void,
+    initialText?: string
   ) => Promise<void>;
   stop?: () => Promise<void>;
 };
@@ -36,7 +32,6 @@ export type TaskComposerProps = {
   speechAdapter?: SpeechAdapter;
   analytics?: (event: TaskAnalyticsEvent) => void;
   onTaskAdded?: () => void;
-  existingTasks?: TaskRow[];
 };
 
 type ComposerStep = 'input' | 'review';
@@ -61,7 +56,6 @@ export const TaskComposer = ({
   speechAdapter,
   analytics,
   onTaskAdded,
-  existingTasks = [],
 }: TaskComposerProps) => {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -112,13 +106,25 @@ export const TaskComposer = ({
         },
         (state) => {
           setSpeechState(state);
-        }
+        },
+        input // Pass existing text to prepend to transcript
       );
-    } catch (_captureError) {
-      setError('Unable to start speech capture.');
+    } catch (captureError) {
+      const message =
+        captureError instanceof Error ? captureError.message : 'Unable to start speech capture.';
+      setError(message);
       setSpeechState('idle');
     }
   };
+
+  const handleSwitchToText = useCallback(async () => {
+    // Stop any in-progress recording before switching
+    if (speechState !== 'idle') {
+      await activeAdapter.current?.stop?.();
+      setSpeechState('idle');
+    }
+    setMode('text');
+  }, [speechState]);
 
   const handleSplit = async () => {
     if (!client || !input.trim()) return;
@@ -126,8 +132,7 @@ export const TaskComposer = ({
     setError(null);
 
     const { data, error: decompositionError } = await client.decomposition.generate({
-      prompt: input,
-      ownerId,
+      text: input,
     });
 
     if (decompositionError || !data) {
@@ -174,64 +179,30 @@ export const TaskComposer = ({
     setSubmitting(true);
     setError(null);
 
-    // Add tasks to the queue (they get added at bottom by default)
-    const { data, error: enqueueError } = await client.decomposition.enqueue(tasksToAdd, ownerId);
+    // Map 'ai' to 'auto' for the API
+    const positionMode = position === 'ai' ? 'auto' : position;
 
-    if (enqueueError || !data || data.length === 0) {
+    // Use unified add-tasks API that handles insert + reorder atomically
+    const { data, error: addError } = await client.ai.addTasks({
+      newTasks: tasksToAdd.map((t) => ({
+        title: t.title,
+        description: t.description,
+      })),
+      position: positionMode,
+    });
+
+    if (addError || !data?.tasks || data.tasks.length === 0) {
       setError('Failed to add tasks');
       setSubmitting(false);
       return;
     }
-
-    // Handle positioning
-    if (position === 'top') {
-      // Move all new tasks to the top in reverse order
-      for (let i = data.length - 1; i >= 0; i--) {
-        const { error: reorderError } = await client.tasks.reorder(
-          { taskId: data[i].id, toIndex: 0 },
-          { ownerId }
-        );
-        if (reorderError) {
-          console.warn('Failed to move task to top', reorderError);
-        }
-      }
-    } else if (position === 'ai' && data.length === 1) {
-      // Use AI to determine position for single task
-      try {
-        const { data: orderResult, error: orderError } = await client.ai.autoOrder({
-          newTask: tasksToAdd[0],
-          existingTasks: existingTasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            description: t.description,
-            priority: t.priority,
-            position: t.position,
-          })),
-          ownerId,
-        });
-
-        if (!orderError && orderResult?.position !== undefined) {
-          const targetPosition = Math.max(0, orderResult.position - 1);
-          const { error: reorderError } = await client.tasks.reorder(
-            { taskId: data[0].id, toIndex: targetPosition },
-            { ownerId }
-          );
-          if (reorderError) {
-            console.warn('Failed to reorder task by AI', reorderError);
-          }
-        }
-      } catch (aiError) {
-        console.warn('AI ordering failed, task added at bottom', aiError);
-      }
-    }
-    // For 'bottom' or multiple tasks with 'ai', they stay where they were added
 
     setSubmitting(false);
     handleClose();
     onTaskAdded?.();
     logAnalytics(analytics, {
       name: 'tasks_enqueued',
-      properties: { count: data.length, position },
+      properties: { count: data.tasks.length, position },
     });
   };
 
@@ -284,15 +255,8 @@ export const TaskComposer = ({
                     )}
                   </Pressable>
                   <Text style={styles.transcript}>{input || 'Say something...'}</Text>
-                  <Pressable onPress={() => setMode('text')} disabled={speechState !== 'idle'}>
-                    <Text
-                      style={[
-                        styles.switchMode,
-                        speechState !== 'idle' && styles.switchModeDisabled,
-                      ]}
-                    >
-                      Switch to keyboard
-                    </Text>
+                  <Pressable onPress={handleSwitchToText}>
+                    <Text style={styles.switchMode}>Switch to keyboard</Text>
                   </Pressable>
                 </View>
               ) : (

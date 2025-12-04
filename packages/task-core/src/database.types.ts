@@ -37,36 +37,27 @@ export type Database = {
         Row: {
           created_at: string;
           description: string | null;
-          due_at: string | null;
           id: string;
           owner_id: string;
           position: number;
-          priority: Database['public']['Enums']['task_priority'];
-          state: Database['public']['Enums']['task_state'];
           title: string;
           updated_at: string;
         };
         Insert: {
           created_at?: string;
           description?: string | null;
-          due_at?: string | null;
           id?: string;
           owner_id: string;
           position?: number;
-          priority?: Database['public']['Enums']['task_priority'];
-          state?: Database['public']['Enums']['task_state'];
           title: string;
           updated_at?: string;
         };
         Update: {
           created_at?: string;
           description?: string | null;
-          due_at?: string | null;
           id?: string;
           owner_id?: string;
           position?: number;
-          priority?: Database['public']['Enums']['task_priority'];
-          state?: Database['public']['Enums']['task_state'];
           title?: string;
           updated_at?: string;
         };
@@ -77,101 +68,18 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      complete_task_and_resequence: {
-        Args: { p_owner: string; p_task_id: string };
-        Returns: {
-          created_at: string;
-          description: string | null;
-          due_at: string | null;
-          id: string;
-          owner_id: string;
-          position: number;
-          priority: Database['public']['Enums']['task_priority'];
-          state: Database['public']['Enums']['task_state'];
-          title: string;
-          updated_at: string;
-        }[];
-        SetofOptions: {
-          from: '*';
-          to: 'tasks';
-          isOneToOne: false;
-          isSetofReturn: true;
-        };
-      };
-      delete_task_and_resequence: {
-        Args: { p_owner: string; p_task_id: string };
-        Returns: {
-          created_at: string;
-          description: string | null;
-          due_at: string | null;
-          id: string;
-          owner_id: string;
-          position: number;
-          priority: Database['public']['Enums']['task_priority'];
-          state: Database['public']['Enums']['task_state'];
-          title: string;
-          updated_at: string;
-        }[];
-        SetofOptions: {
-          from: '*';
-          to: 'tasks';
-          isOneToOne: false;
-          isSetofReturn: true;
-        };
-      };
-      deprioritize_task_to_bottom: {
-        Args: { p_owner: string; p_task_id: string };
-        Returns: {
-          created_at: string;
-          description: string | null;
-          due_at: string | null;
-          id: string;
-          owner_id: string;
-          position: number;
-          priority: Database['public']['Enums']['task_priority'];
-          state: Database['public']['Enums']['task_state'];
-          title: string;
-          updated_at: string;
-        }[];
-        SetofOptions: {
-          from: '*';
-          to: 'tasks';
-          isOneToOne: false;
-          isSetofReturn: true;
-        };
+      batch_update_task_positions: {
+        Args: { p_owner: string; p_updates: Json };
+        Returns: undefined;
       };
       reorder_task_queue: {
         Args: { p_owner: string; p_task_id: string; p_to_index: number };
         Returns: {
           created_at: string;
           description: string | null;
-          due_at: string | null;
           id: string;
           owner_id: string;
           position: number;
-          priority: Database['public']['Enums']['task_priority'];
-          state: Database['public']['Enums']['task_state'];
-          title: string;
-          updated_at: string;
-        }[];
-        SetofOptions: {
-          from: '*';
-          to: 'tasks';
-          isOneToOne: false;
-          isSetofReturn: true;
-        };
-      };
-      resequence_active_tasks: {
-        Args: { p_owner: string };
-        Returns: {
-          created_at: string;
-          description: string | null;
-          due_at: string | null;
-          id: string;
-          owner_id: string;
-          position: number;
-          priority: Database['public']['Enums']['task_priority'];
-          state: Database['public']['Enums']['task_state'];
           title: string;
           updated_at: string;
         }[];
@@ -184,8 +92,7 @@ export type Database = {
       };
     };
     Enums: {
-      task_priority: 'low' | 'medium' | 'high' | 'urgent';
-      task_state: 'backlog' | 'todo' | 'in_progress' | 'blocked' | 'done' | 'archived';
+      [_ in never]: never;
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -313,9 +220,6 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {
-      task_priority: ['low', 'medium', 'high', 'urgent'],
-      task_state: ['backlog', 'todo', 'in_progress', 'blocked', 'done', 'archived'],
-    },
+    Enums: {},
   },
 } as const;

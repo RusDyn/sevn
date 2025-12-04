@@ -232,11 +232,7 @@ export const useRealtimeTaskQueue = (
       setError(queryError);
     } else {
       setError(null);
-      setQueue(
-        normalizeQueuePositions(
-          (tasks ?? []).filter((task) => task.state !== 'done' && task.state !== 'archived')
-        )
-      );
+      setQueue(normalizeQueuePositions(tasks ?? []));
     }
 
     setLoading(false);
@@ -308,10 +304,10 @@ export const useRealtimeTaskQueue = (
 
       return optimisticUpdate(
         (tasks) => tasks.filter((task) => task.id !== taskId),
-        () => client.tasks.complete(taskId, { ownerId })
+        () => client.tasks.complete(taskId)
       );
     },
-    [client, optimisticUpdate, ownerId]
+    [client, optimisticUpdate]
   );
 
   const deleteTask = useCallback(
@@ -320,15 +316,16 @@ export const useRealtimeTaskQueue = (
 
       return optimisticUpdate(
         (tasks) => tasks.filter((task) => task.id !== taskId),
-        () => client.tasks.remove(taskId, { ownerId })
+        () => client.tasks.remove(taskId)
       );
     },
-    [client, optimisticUpdate, ownerId]
+    [client, optimisticUpdate]
   );
 
   const deprioritizeTask = useCallback(
     async (taskId: string) => {
       if (!client) return { data: null, error: new Error('No client configured') } as const;
+      if (!ownerId) return { data: null, error: new Error('No owner ID') } as const;
 
       const move: QueueMove = { taskId, toIndex: queue.length };
 

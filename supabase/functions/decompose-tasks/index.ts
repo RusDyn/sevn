@@ -4,14 +4,11 @@ import OpenAI from 'npm:openai';
 
 type TaskDraft = {
   title: string;
-  description?: string | null;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  due_at?: string | null;
+  description: string | null;
 };
 
 type DecompositionRequest = {
-  prompt: string;
-  ownerId?: string;
+  text: string;
   timezone?: string;
   desiredCount?: number;
 };
@@ -46,8 +43,6 @@ const normalizeTasks = (tasks: TaskDraft[] = []): TaskDraft[] =>
     .map((task) => ({
       title: task.title.trim(),
       description: task.description ?? null,
-      priority: task.priority ?? 'medium',
-      due_at: task.due_at ?? null,
     }))
     .filter((task) => task.title.length > 0);
 
@@ -75,8 +70,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: corsHeaders });
   }
 
-  if (!payload?.prompt || payload.prompt.trim().length === 0) {
-    return new Response(JSON.stringify({ error: 'A prompt is required' }), {
+  if (!payload?.text || payload.text.trim().length === 0) {
+    return new Response(JSON.stringify({ error: 'text is required' }), {
       status: 400,
       headers: corsHeaders,
     });
@@ -121,7 +116,7 @@ serve(async (req) => {
   const client = new OpenAI({ apiKey });
   const model = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
 
-  const ownerId = payload.ownerId ?? user?.id ?? undefined;
+  const ownerId = user?.id;
 
   try {
     const completion = await client.chat.completions.create({
@@ -135,7 +130,7 @@ serve(async (req) => {
         {
           role: 'user',
           content: [
-            { type: 'text', text: `User task: ${payload.prompt}` },
+            { type: 'text', text: `User task: ${payload.text}` },
             payload.desiredCount
               ? { type: 'text', text: `Aim for ${payload.desiredCount} items.` }
               : null,
@@ -158,16 +153,14 @@ serve(async (req) => {
                   properties: {
                     title: { type: 'string' },
                     description: { type: ['string', 'null'] },
-                    priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
-                    due_at: { type: ['string', 'null'], description: 'ISO8601 due date if mentioned' },
                   },
-                  required: ['title'],
+                  required: ['title', 'description'],
                   additionalProperties: false,
                 },
               },
-              summary: { type: 'string' },
+              summary: { type: ['string', 'null'] },
             },
-            required: ['tasks'],
+            required: ['tasks', 'summary'],
             additionalProperties: false,
           },
           strict: true,
